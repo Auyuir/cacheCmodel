@@ -1,5 +1,5 @@
-#ifndef GPU_MISC_H
-#define GPU_MISC_H
+#ifndef UTILS_H
+#define UTILS_H
 
 #include <random>
 #include <functional>

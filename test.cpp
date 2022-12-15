@@ -1,3 +1,4 @@
+#include "parameter.h"
 #include "tag_array.h"
 
 enum LSU_cache_coreReq_opcode {
