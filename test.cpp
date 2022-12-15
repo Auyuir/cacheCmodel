@@ -66,8 +66,6 @@ public:
     std::deque<dcache_2_LSU_coreRsp> m_Q;
 };
 
-
-
 /*
 class data_array : cache_building_block {//TODO: embody DATA_SRAM_LATENCY
 public:
@@ -142,32 +140,65 @@ public:
     //std::array<u_int32_t,NLINE>* a_data;
 };
 
+class l1_data_cache : public cache_building_block{
+public:
+    l1_data_cache(){
+        m_coreReq_ptr=NULL;
+    }
+    
+    void cycle(cycle_t time);
 
-void pre_tag_parser (LSU_2_dcache_coreReq& coreReq, tag_array* tag, cycle_t time){
-    if (coreReq.m_opcode==Read || coreReq.m_opcode==Write){
-        assert(coreReq.m_type == 0 || coreReq.m_type == 1);
-        if(coreReq.m_type == 0){//TODO
-            //Regular READ or WRITE
-            u_int32_t way_idx=0;
-            enum tag_access_status status = tag->probe(coreReq.m_block_idx,way_idx);
-            if (status == HIT){
-                
+public:
+    LSU_2_dcache_coreReq* m_coreReq_ptr;
+//private:
+    tag_array m_tag_array;
+    coreRsp_Q m_coreRsp_Q;
+};
+
+void l1_data_cache::cycle(cycle_t time){
+    if (m_coreReq_ptr == NULL)
+        return;
+    else{
+        if (m_coreReq_ptr->m_opcode==Read || m_coreReq_ptr->m_opcode==Write){
+            assert(m_coreReq_ptr->m_type == 0 || m_coreReq_ptr->m_type == 1);
+            if(m_coreReq_ptr->m_type == 0){//TODO
+                //Regular READ or WRITE
+                u_int32_t way_idx=0;
+                enum tag_access_status status = m_tag_array.probe(m_coreReq_ptr->m_block_idx,way_idx);
+                if (status == HIT){
+                    m_tag_array.read_hit_update_access_time(m_coreReq_ptr->m_block_idx,way_idx,time);
+                    //TODO  data
+                    dcache_2_LSU_coreRsp read_hit_coreRsp(m_coreReq_ptr->m_req_id,m_coreReq_ptr->m_mask,true);
+                    m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
+                    m_coreReq_ptr = NULL;
+                }else if(status == MISS){
+                    //TODO  mshr
+                }
+            }else if(m_coreReq_ptr->m_type == 1){//TODO
+                //LR / SC
             }
-        }else if(coreReq.m_type == 1){//TODO
-            //LR / SC
+        }else if(m_coreReq_ptr->m_opcode==Fence){
+            //Fence
+        }else {
+            assert(m_coreReq_ptr->m_opcode==Amo);
         }
-    }else if(coreReq.m_opcode==Fence){
-        //Fence
-    }else {
-        assert(coreReq.m_opcode==Amo);
     }
 }
 
 int main() {
     std::cout << "modeling cache tag array now" << std::endl;
-    tag_array tag=tag_array();
-    tag.DEBUG_random_initialize(100);
-    tag.DEBUG_visualize_array(0,10);
+    l1_data_cache dcache;
+    dcache.m_tag_array.DEBUG_random_initialize(100);
+    //initialize a coreReq
+    std::array<u_int32_t,32> p_addr = {};
+    std::array<bool,32> p_mask = {true};
+    LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,0,1,0xff02,p_addr,p_mask);
+    auto temp = &coreReq;
+    dcache.m_coreReq_ptr = temp;
+    dcache.cycle(101);
+    std::cout << dcache.get_tag(0xffff) <<std::endl;
+
+    dcache.m_tag_array.DEBUG_visualize_array(0,10);
     //TODO: How to represent "time"?
     //TODO: How to serialize test event and construct the interface to push test event in
 }

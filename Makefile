@@ -1,2 +1,2 @@
 cache:
-	g++ -g *.cpp -o test
+	g++ -fdiagnostics-color=always -g *.cpp -o test

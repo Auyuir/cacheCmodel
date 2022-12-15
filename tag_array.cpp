@@ -12,7 +12,7 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
         return MISS;
     }
 
-    void tag_array::read_hit_update_access_time(u_int32_t way_idx, u_int32_t set_idx,cycle_t time){
+    void tag_array::read_hit_update_access_time(u_int32_t set_idx,u_int32_t way_idx,cycle_t time){
         auto& the_one = m_tag[set_idx][way_idx];
         assert(the_one.is_valid());
         the_one.update_access_time(time);
