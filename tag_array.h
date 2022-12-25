@@ -17,8 +17,6 @@ enum tag_access_status {
     MISS=0
 };
 
-typedef unsigned int cycle_t;
-
 class meta_entry_t : cache_building_block{
 public:
     meta_entry_t(){

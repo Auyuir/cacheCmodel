@@ -1,5 +1,6 @@
 #include "parameter.h"
 #include "tag_array.h"
+#include "miss_status_holding_reg.h"
 
 enum LSU_cache_coreReq_opcode {
     Read,
@@ -114,7 +115,7 @@ public:
 struct LSU_2_dcache_coreReq : cache_building_block {
 public:
     LSU_2_dcache_coreReq(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
-        u_int32_t wid, u_int32_t req_id, u_int64_t block_idx,std::array<u_int32_t,NLANE> perLane_addr, 
+        u_int32_t wid, u_int32_t req_id, u_int64_t block_idx,vec_nlane_t perLane_addr, 
         std::array<bool,NLANE> mask){//std::array<u_int32_t,NLINE> *data=NULL,
         m_opcode = opcode;
         m_type = type;
@@ -135,7 +136,7 @@ public:
     u_int32_t m_req_id;
     u_int64_t m_block_idx;
     std::array<bool,NLANE> m_mask;
-    std::array<u_int32_t,NLANE> m_perLane_addr;//block_offset
+    vec_nlane_t m_perLane_addr;//block_offset
     bool m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
 };

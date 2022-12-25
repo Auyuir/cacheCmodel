@@ -5,6 +5,8 @@
 
 #include "utils.h"
 
+typedef unsigned int cycle_t;
+
 class cache_building_block{
 public:
     u_int64_t get_tag(u_int64_t block_idx){
@@ -33,6 +35,11 @@ public:
     constexpr static u_int32_t CACHESIZE = NLINE *LINESIZE;
 
     const static u_int32_t DATA_SRAM_LATENCY = 0;//in cycle
+
+    constexpr static u_int32_t N_MSHR_ENTRY = 4;
+    constexpr static u_int32_t N_MSHR_SUBENTRY = 4;
+
+    typedef std::array<u_int32_t,NLANE> vec_nlane_t;
 };
 
 #endif
