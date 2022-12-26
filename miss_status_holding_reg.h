@@ -27,6 +27,7 @@ public:
 }
 private:
     //bool m_sub_valid;
+
     enum entry_target_type m_sub_type; 
     u_int32_t m_req_id;
 
@@ -34,13 +35,19 @@ private:
     vec_nlane_t m_block_offset;
     vec_nlane_t m_word_offset;
 friend class entry_target_info;
+friend class mshr;
 };
 
 class entry_target_info : public cache_building_block{
 public:
+    entry_target_info(){}
+
     entry_target_info(enum entry_target_type type, std::array<bool,NLANE> mask,
         u_int32_t req_id, vec_nlane_t block_offset, vec_nlane_t word_offset){
         allocate_sub(type,mask,req_id,block_offset,word_offset);
+    }
+    entry_target_info(subentry sub){
+        allocate_sub(sub);
     }
 
     bool sub_is_full(){
@@ -51,6 +58,11 @@ public:
         u_int32_t req_id, vec_nlane_t block_offset, vec_nlane_t word_offset){
         assert(!sub_is_full());
         subentry sub = subentry(type, req_id, mask, block_offset, word_offset);
+        m_sub_en.push_back(sub);
+    }
+
+    void allocate_sub(subentry& sub){
+        assert(!sub_is_full());
         m_sub_en.push_back(sub);
     }
 
@@ -67,13 +79,13 @@ private:
 
 class mshr_miss_req_t : public cache_building_block{
     mshr_miss_req_t(u_int32_t block_addr, u_int32_t req_id,
-        enum entry_target_type type, subentry* sub_ptr){
+        enum entry_target_type type, subentry sub){
         m_block_addr = block_addr;
-        m_sub_ptr = sub_ptr;
+        m_sub = sub;
     }
     private:
     u_int32_t m_block_addr;
-    subentry* m_sub_ptr;
+    subentry m_sub;
 
     friend class mshr;
 };
@@ -98,11 +110,10 @@ class mshr : public cache_building_block{
                 assert(m_entry.size() <= N_MSHR_ENTRY);
                 if(m_entry.size() == N_MSHR_ENTRY)
                     return ;//primary miss + main entry full
-                //entry_target_info new_main(m_miss_req_ptr->m_type,//TODO
-                //m_miss_req_ptr->m_mask,m_miss_req_ptr->m_req_id,
-                //m_miss_req_ptr->m_block_offset,m_miss_req_ptr->m_word_offset);
-                //m_entry.insert({m_miss_req_ptr->m_block_addr,m_miss_req_ptr->})
+                entry_target_info new_main = entry_target_info(m_miss_req_ptr->m_sub);
+                m_entry.insert({m_miss_req_ptr->m_block_addr,new_main});//deep copy?
             }else{
+                assert(m_entry.size() > 0);
                 if (m_entry[m_miss_req_ptr->m_block_addr].sub_is_full())
                     return ;//secondary miss + sub entry full
             }
