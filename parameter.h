@@ -38,6 +38,7 @@ public:
 
     constexpr static u_int32_t N_MSHR_ENTRY = 4;
     constexpr static u_int32_t N_MSHR_SUBENTRY = 4;
+    constexpr static u_int32_t N_MSHR_SPECIAL_ENTRY = 4;
 
     typedef std::array<u_int32_t,NLANE> vec_nlane_t;
 };

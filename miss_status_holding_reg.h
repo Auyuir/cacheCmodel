@@ -13,13 +13,13 @@ enum entry_target_type{
     AMO
 };
 
-class subentry : public cache_building_block{
+class vec_subentry : public cache_building_block{
 public:
-    subentry(){}
+    vec_subentry(){}
 
-    subentry(enum entry_target_type type, u_int32_t req_id,
+    vec_subentry(u_int32_t req_id,
     std::array<bool,NLANE> mask,vec_nlane_t block_offset,vec_nlane_t word_offset){
-        m_sub_type = type;
+        //m_sub_type = type;
         m_req_id = req_id;
         m_mask = mask;
         m_block_offset = block_offset;
@@ -34,19 +34,17 @@ private:
     std::array<bool,NLANE> m_mask;
     vec_nlane_t m_block_offset;
     vec_nlane_t m_word_offset;
-friend class entry_target_info;
+
+friend class special_target_info;
+friend class vec_entry_target_info;
 friend class mshr;
 };
 
-class entry_target_info : public cache_building_block{
+class vec_entry_target_info : public cache_building_block{
 public:
-    entry_target_info(){}
+    vec_entry_target_info(){}
 
-    entry_target_info(enum entry_target_type type, std::array<bool,NLANE> mask,
-        u_int32_t req_id, vec_nlane_t block_offset, vec_nlane_t word_offset){
-        allocate_sub(type,mask,req_id,block_offset,word_offset);
-    }
-    entry_target_info(subentry sub){
+    vec_entry_target_info(vec_subentry sub){
         allocate_sub(sub);
     }
 
@@ -54,14 +52,7 @@ public:
         return m_sub_en.size() < N_MSHR_SUBENTRY;
     }
 
-    void allocate_sub(enum entry_target_type type, std::array<bool,NLANE> mask,
-        u_int32_t req_id, vec_nlane_t block_offset, vec_nlane_t word_offset){
-        assert(!sub_is_full());
-        subentry sub = subentry(type, req_id, mask, block_offset, word_offset);
-        m_sub_en.push_back(sub);
-    }
-
-    void allocate_sub(subentry& sub){
+    void allocate_sub(vec_subentry& sub){
         assert(!sub_is_full());
         m_sub_en.push_back(sub);
     }
@@ -74,18 +65,38 @@ public:
 private:
     //bool m_valid;
     //u_int32_t m_block_addr;
-    std::vector<subentry> m_sub_en;
+    std::vector<vec_subentry> m_sub_en;
+
+    bool m_have_issued_2_memReq;
+    friend class mshr;
+};
+
+class special_target_info{
+public:
+    special_target_info(){}
+
+    special_target_info(vec_subentry sub){
+        m_sub_type = sub.m_sub_type;
+        m_req_id = sub.m_req_id;
+    }
+
+    private:
+    enum entry_target_type m_sub_type;
+    u_int32_t m_req_id;
+    
+    bool m_have_issued_2_memReq;
+    friend class mshr;
 };
 
 class mshr_miss_req_t : public cache_building_block{
-    mshr_miss_req_t(u_int32_t block_addr, u_int32_t req_id,
-        enum entry_target_type type, subentry sub){
+public:
+    mshr_miss_req_t(u_int32_t block_addr,vec_subentry sub){
         m_block_addr = block_addr;
         m_sub = sub;
     }
-    private:
+private:
     u_int32_t m_block_addr;
-    subentry m_sub;
+    vec_subentry m_sub;
 
     friend class mshr;
 };
@@ -97,45 +108,81 @@ class mshr_miss_rsp_t : public cache_building_block{
 
 class mshr : public cache_building_block{
     typedef u_int32_t block_addr_t;
+public:
     mshr(){
         m_miss_req_ptr = NULL;
         m_miss_rsp_ptr = NULL;
     }
-    void cycle(){
+
+    void cycle_in(cycle_t time){
         if(m_miss_rsp_ptr != NULL){
-            //deal with miss rsp//TODO
+            //assert(m_vec_entry[m_miss_rsp_ptr->]);
+
+
+            //TODO
+
+
             m_miss_rsp_ptr = NULL;
         }else if(m_miss_req_ptr != NULL){
-            if (is_primary_miss()){
-                assert(m_entry.size() <= N_MSHR_ENTRY);
-                if(m_entry.size() == N_MSHR_ENTRY)
-                    return ;//primary miss + main entry full
-                entry_target_info new_main = entry_target_info(m_miss_req_ptr->m_sub);
-                m_entry.insert({m_miss_req_ptr->m_block_addr,new_main});//deep copy?
-            }else{
-                assert(m_entry.size() > 0);
-                if (m_entry[m_miss_req_ptr->m_block_addr].sub_is_full())
-                    return ;//secondary miss + sub entry full
+            if(m_miss_req_ptr->m_sub.m_sub_type == REGULAR_READ_MISS){
+                if (is_primary_miss()){
+                    assert(m_vec_entry.size() <= N_MSHR_ENTRY);
+                    if(m_vec_entry.size() == N_MSHR_ENTRY){
+                        return ;
+                        std::cout << "primary miss + main entry full at " << time << std::endl;
+                    }
+                    vec_entry_target_info new_main = vec_entry_target_info(m_miss_req_ptr->m_sub);
+                    m_vec_entry.insert({m_miss_req_ptr->m_block_addr,new_main});//deep copy?
+                }else{
+                    assert(m_vec_entry.size() > 0);
+                    auto& the_main = m_vec_entry[m_miss_req_ptr->m_block_addr];
+                    if (the_main.sub_is_full()){
+                        return ;
+                        std::cout << "secondary miss + sub entry full at " << time << std::endl;
+                    }
+                    the_main.allocate_sub(m_miss_req_ptr->m_sub);
+                }
+                //deal with missReq
+                m_miss_req_ptr = NULL;
+            }else{//LR SC AMO
+                assert(m_special_entry.size() <= N_MSHR_SPECIAL_ENTRY);
+                if(m_special_entry.size() == N_MSHR_SPECIAL_ENTRY){
+                    return;
+                    std::cout << "LR/SC AMO + special entry full at " << time << std::endl;
+                }
+                special_target_info new_special = special_target_info(m_miss_req_ptr->m_sub);
+                m_special_entry.insert({m_miss_req_ptr->m_sub.m_req_id,new_special});
             }
-            //deal with missReq
-            m_miss_req_ptr = NULL;
         }
         return;
     }
 
+    void cycle_out(){
+        for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
+            if (!iter->second.m_have_issued_2_memReq){
+
+                //TODO
+
+                return;
+            }
+        }
+    }
+
     bool is_primary_miss(){
         assert(m_miss_req_ptr != NULL);
-        for (auto iter = m_entry.begin(); iter != m_entry.end(); ++iter) {
+        for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
             if (iter->first == m_miss_req_ptr->m_block_addr)
                 return true;
         }
         return false;
     }
 
-    private:
     mshr_miss_req_t* m_miss_req_ptr;
     mshr_miss_rsp_t* m_miss_rsp_ptr;
-    std::map<block_addr_t,entry_target_info> m_entry;//TODO
+    
+    private:
+    std::map<block_addr_t,vec_entry_target_info> m_vec_entry;//TODO
+    std::map<uint32_t,special_target_info> m_special_entry;
 };
 
 #endif

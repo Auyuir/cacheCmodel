@@ -136,7 +136,8 @@ public:
     u_int32_t m_req_id;
     u_int64_t m_block_idx;
     std::array<bool,NLANE> m_mask;
-    vec_nlane_t m_perLane_addr;//block_offset
+    vec_nlane_t m_block_offset;//block_offset
+    vec_nlane_t m_word_offset;//block_offset
     bool m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
 };
@@ -151,12 +152,20 @@ public:
 
 public:
     LSU_2_dcache_coreReq* m_coreReq_ptr;
+
 //private:
+    //mshr_miss_req_t* m_miss_req_ptr;
+
     tag_array m_tag_array;
+    mshr m_mshr;
     coreRsp_Q m_coreRsp_Q;
 };
 
 void l1_data_cache::cycle(cycle_t time){
+
+    m_mshr.cycle_in(time);
+
+    //deal with coreReq
     if (m_coreReq_ptr == NULL)
         return;
     else{
@@ -168,12 +177,19 @@ void l1_data_cache::cycle(cycle_t time){
                 enum tag_access_status status = m_tag_array.probe(m_coreReq_ptr->m_block_idx,way_idx);
                 if (status == HIT){
                     m_tag_array.read_hit_update_access_time(m_coreReq_ptr->m_block_idx,way_idx,time);
-                    //TODO  data
                     dcache_2_LSU_coreRsp read_hit_coreRsp(m_coreReq_ptr->m_req_id,m_coreReq_ptr->m_mask,true);
                     m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
                     m_coreReq_ptr = NULL;
                 }else if(status == MISS){
-                    //TODO  mshr
+                    vec_subentry regular_read_miss = vec_subentry(
+                        m_coreReq_ptr->m_req_id,
+                        m_coreReq_ptr->m_mask,
+                        m_coreReq_ptr->m_block_offset,
+                        m_coreReq_ptr->m_word_offset);
+                    mshr_miss_req_t new_miss_req = mshr_miss_req_t(
+                        m_coreReq_ptr->m_block_idx,
+                        regular_read_miss);
+                    m_mshr.m_miss_req_ptr = &new_miss_req;
                 }
             }else if(m_coreReq_ptr->m_type == 1){//TODO
                 //LR / SC
@@ -197,6 +213,7 @@ int main() {
     auto temp = &coreReq;
     dcache.m_coreReq_ptr = temp;
     dcache.cycle(101);
+    dcache.cycle(102);
     std::cout << dcache.get_tag(0xffff) <<std::endl;
 
     dcache.m_tag_array.DEBUG_visualize_array(0,10);
