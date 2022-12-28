@@ -92,12 +92,12 @@ void l1_data_cache::cycle(cycle_t time){
                     if (m_mshr.m_miss_req_ptr!=nullptr){
                         //jump out if-else without clear m_coreReq_ptr
                     }else{
-                        vec_subentry regular_read_miss = vec_subentry(
-                            REGULAR_READ_MISS,
+                        vec_subentry read_miss_sub = vec_subentry(
                             m_coreReq_ptr->m_req_id);
                         mshr_miss_req_t new_miss_req = mshr_miss_req_t(
                             m_coreReq_ptr->m_block_idx,
-                            regular_read_miss);
+                            REGULAR_READ_MISS,
+                            read_miss_sub);
                         m_mshr.m_miss_req_ptr = &new_miss_req;
                     }
                 }

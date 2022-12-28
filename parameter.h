@@ -41,6 +41,8 @@ public:
     constexpr static u_int32_t N_MSHR_SPECIAL_ENTRY = 4;
 
     typedef std::array<u_int32_t,NLANE> vec_nlane_t;
+
+    constexpr static u_int32_t CORE_RSP_Q_DEPTH = 2;
 };
 
 #endif
