@@ -86,7 +86,7 @@ void l1_data_cache::cycle(cycle_t time){
                 enum tag_access_status status = m_tag_array.probe(m_coreReq_ptr->m_block_idx,way_idx);
                 if (status == HIT){
                     m_tag_array.read_hit_update_access_time(m_coreReq_ptr->m_block_idx,way_idx,time);
-                    dcache_2_LSU_coreRsp read_hit_coreRsp(m_coreReq_ptr->m_req_id,true);
+                    dcache_2_LSU_coreRsp read_hit_coreRsp(m_coreReq_ptr->m_reg_idxw,true);
                     m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
                     m_coreReq_ptr = NULL;
                 }else if(status == MISS){
@@ -94,7 +94,7 @@ void l1_data_cache::cycle(cycle_t time){
                         //jump out if-else without clear m_coreReq_ptr
                     }else{
                         vec_subentry read_miss_sub = vec_subentry(
-                            m_coreReq_ptr->m_req_id);
+                            m_coreReq_ptr->m_reg_idxw);
                         mshr_miss_req_t new_miss_req = mshr_miss_req_t(
                             m_coreReq_ptr->m_block_idx,
                             REGULAR_READ_MISS,

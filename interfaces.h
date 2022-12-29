@@ -81,13 +81,13 @@ public:
 
 struct dcache_2_LSU_coreRsp : cache_building_block {
 public:
-    dcache_2_LSU_coreRsp(u_int32_t req_id, bool data){//std::array<u_int32_t,NLINE> *data=NULL,std::array<bool,NLANE> mask, 
-        m_req_id = req_id;
+    dcache_2_LSU_coreRsp(u_int32_t reg_idxw, bool data){//std::array<u_int32_t,NLINE> *data=NULL,std::array<bool,NLANE> mask, 
+        m_reg_idxw = reg_idxw;
         //m_mask = mask;
         m_data = data;
     }
 
-    u_int32_t m_req_id;
+    u_int32_t m_reg_idxw;
     //std::array<bool,NLANE> m_mask;
     bool m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
@@ -105,8 +105,8 @@ public:
         std::array<bool,NLANE> mask){//std::array<u_int32_t,NLINE> *data=NULL,
         m_opcode = opcode;
         m_type = type;
-        m_wid = wid;
-        m_req_id = req_id;//used for coreRsp
+        m_wid = wid;//used for coreRsp
+        m_reg_idxw = req_id;//used for coreRsp
         m_block_idx = block_idx;
         m_mask = mask;
         if (opcode == Read | opcode == Fence)
@@ -119,7 +119,7 @@ public:
     enum LSU_cache_coreReq_opcode m_opcode;
     u_int32_t m_type;
     u_int32_t m_wid;
-    u_int32_t m_req_id;
+    u_int32_t m_reg_idxw;
     u_int64_t m_block_idx;
     std::array<bool,NLANE> m_mask;
     vec_nlane_t m_block_offset;//block_offset
