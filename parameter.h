@@ -43,6 +43,7 @@ public:
     typedef std::array<u_int32_t,NLANE> vec_nlane_t;
 
     constexpr static u_int32_t CORE_RSP_Q_DEPTH = 2;
+    constexpr static u_int32_t MEM_REQ_Q_DEPTH = 10;
 };
 
 #endif

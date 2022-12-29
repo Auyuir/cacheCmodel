@@ -75,12 +75,14 @@ class special_target_info{
 public:
     special_target_info(){}
 
-    special_target_info(enum entry_target_type type, u_int32_t req_id):
-        m_sub_type(type),m_req_id(req_id){}
+    special_target_info(enum entry_target_type type, u_int32_t req_id, 
+    enum LSU_cache_coreReq_type_amo amo_type=notamo):
+        m_type(type),m_req_id(req_id),m_amo_type(amo_type){}
 
     private:
-    enum entry_target_type m_sub_type;
+    enum entry_target_type m_type;
     u_int32_t m_req_id;
+    enum LSU_cache_coreReq_type_amo m_amo_type;
     
     bool m_have_issued_2_memReq;
     friend class mshr;
@@ -89,13 +91,16 @@ public:
 class mshr_miss_req_t : public cache_building_block{
 public:
     mshr_miss_req_t(u_int32_t block_addr, 
-        enum entry_target_type type, vec_subentry sub) : 
-        m_block_addr(block_addr), m_type(type), m_sub(sub){
+        enum entry_target_type type, vec_subentry sub,
+        enum LSU_cache_coreReq_type_amo amo_type=notamo) : 
+        m_block_addr(block_addr), m_type(type), 
+        m_sub(sub),m_amo_type(amo_type){
     }
 private:
     u_int32_t m_block_addr;
     enum entry_target_type m_type;
     vec_subentry m_sub;
+    enum LSU_cache_coreReq_type_amo m_amo_type;
 
     friend class mshr;
 };
@@ -116,15 +121,60 @@ class mshr : public cache_building_block{
 public:
     mshr(){}
 
-    mshr(coreRsp_Q* coreRsp_Q_ptr) : m_coreRsp_Q_ptr(coreRsp_Q_ptr){
+    mshr(coreRsp_Q& coreRsp_Q_obj, memReq_Q& memReq_Q_obj)
+        :m_coreRsp_Q(coreRsp_Q_obj), m_memReq_Q(memReq_Q_obj){
         m_miss_req_ptr = nullptr;
         m_miss_rsp_ptr = nullptr;
+    }
+
+    void cast_amo_LSU_type_2_TLUH_param(enum LSU_cache_coreReq_type_amo coreReq_type, 
+    enum TL_UH_A_opcode& TL_opcode, u_int32_t& TL_param){
+        //TODO
+        switch(coreReq_type)
+        {
+            case amoadd:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(ADD);
+                break;
+            case amoxor:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(XOR);
+                break;
+            case amoand:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(AND);
+                break;
+            case amoor:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(OR);
+                break;
+            case amomin:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MIN);
+                break;
+            case amomax:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MAX);
+                break;
+            case amominu:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MINU);
+                break;
+            case amomaxu:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MAXU);
+                break;
+            case amoswap:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(SWAP);
+                break;
+        }
     }
 
     //from special entry
     void special_arrange_core_rsp(u_int32_t req_id){
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(req_id,true);
-        m_coreRsp_Q_ptr->m_Q.push_back(new_rsp);
+        m_coreRsp_Q.m_Q.push_back(new_rsp);
         //AMO,LR,SC都不引起data access写入。
         //AMO和LR向coreRsp.data写回数据
         //SC成功向coreRsp.data写0，失败写1
@@ -134,13 +184,13 @@ public:
 
     //from vec entry, 1 subentry/cycle
     bool vec_arrange_core_rsp(block_addr_t block_idx){
-        assert(m_coreRsp_Q_ptr->m_Q.size() < CORE_RSP_Q_DEPTH);
+        assert(m_coreRsp_Q.m_Q.size() < CORE_RSP_Q_DEPTH);
         auto& current_main = m_vec_entry[block_idx].m_sub_en;
         assert(!current_main.empty());
         auto& current_sub = current_main.back();
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(current_sub.m_req_id,true);
         //引发一次data access写入
-        m_coreRsp_Q_ptr->m_Q.push_back(new_rsp);
+        m_coreRsp_Q.m_Q.push_back(new_rsp);
         current_main.pop_back();
 
         if (current_main.empty()){
@@ -152,7 +202,7 @@ public:
     }
 
     void cycle_in(bool& mshr_2_coreRsp, cycle_t time){
-        if(m_miss_rsp_ptr != nullptr && m_coreRsp_Q_ptr->m_Q.size() < CORE_RSP_Q_DEPTH){
+        if(m_miss_rsp_ptr != nullptr && m_coreRsp_Q.m_Q.size() < CORE_RSP_Q_DEPTH){
             bool special_miss_rsp = false;
             for (auto iter = m_special_entry.begin(); iter != m_special_entry.end(); ++iter) {
                 if (iter->first == m_miss_rsp_ptr->id()){
@@ -203,22 +253,65 @@ public:
                     return;
                     std::cout << "LR/SC AMO + special entry full at " << time << std::endl;
                 }
-                special_target_info new_special = special_target_info(m_miss_req_ptr->m_type,m_miss_req_ptr->m_sub.m_req_id);
+                special_target_info new_special;
+                if (m_miss_req_ptr->m_type == AMO){
+                    new_special = special_target_info(m_miss_req_ptr->m_type,
+                    m_miss_req_ptr->m_sub.m_req_id, m_miss_req_ptr->m_amo_type);
+                }else{
+                    new_special = special_target_info(m_miss_req_ptr->m_type,
+                    m_miss_req_ptr->m_sub.m_req_id);
+                }
+                
                 m_special_entry.insert({m_miss_req_ptr->m_sub.m_req_id,new_special});
+                //TODO 添加有关TL_UH_A_PARAM_AMO的内容
                 m_miss_req_ptr = nullptr;
             }
         }
         return;
     }
 
-    void cycle_out(){
-        for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
-            if (!iter->second.m_have_issued_2_memReq){
-
-                //TODO
-
-                return;
+    //函数返回值指示本周期是否向memReq发送内容
+    bool cycle_out(){
+        //TODO:vec_entry和special_entry有先后顺序的问题
+        //TODO:考虑MSHR对memReqQ写入资格审查的问题
+        if(m_memReq_Q.m_Q.size() < MEM_REQ_Q_DEPTH){
+            for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
+                if (!iter->second.m_have_issued_2_memReq){
+                    dcache_2_L2_memReq new_memReq = dcache_2_L2_memReq(
+                        Get, 0,//a_op = Get, a_param = 0 for regular read
+                        iter->second.m_req_id, iter->first);
+                    m_memReq_Q.m_Q.push_back(new_memReq);
+                    iter->second.m_have_issued_2_memReq = true;
+                    return true;
+                }
             }
+            for (auto iter = m_special_entry.begin(); iter != m_special_entry.end(); ++iter) {
+                if (!iter->second.m_have_issued_2_memReq){
+                    dcache_2_L2_memReq new_memReq;
+                    if (iter->second.m_type == LOAD_RESRV){
+                        new_memReq = dcache_2_L2_memReq(
+                        Get, 1,//a_op = Get, a_param = 1 for LR
+                        iter->second.m_req_id, iter->first);
+                    } else if (iter->second.m_type == STORE_COND){
+                        new_memReq = dcache_2_L2_memReq(
+                        PutPartialData, 1,//for SC
+                        iter->second.m_req_id, iter->first);
+                    } else{
+                        assert(iter->second.m_type == AMO);
+                        enum TL_UH_A_opcode amo_op;
+                        u_int32_t amo_param;
+                        cast_amo_LSU_type_2_TLUH_param(iter->second.m_amo_type,amo_op,amo_param);
+                        new_memReq = dcache_2_L2_memReq(
+                        amo_op, amo_param,
+                        iter->second.m_req_id, iter->first);
+                    }
+                    m_memReq_Q.m_Q.push_back(new_memReq);
+                    iter->second.m_have_issued_2_memReq = true;
+                    return true;
+                }
+            }
+        }else{
+            return false;
         }
     }
 
@@ -235,7 +328,8 @@ public:
     mshr_miss_rsp_t* m_miss_rsp_ptr;
     
     private:
-    coreRsp_Q* m_coreRsp_Q_ptr;//指向真正唯一的coreRspQ
+    memReq_Q m_memReq_Q;
+    coreRsp_Q m_coreRsp_Q;//指向真正唯一的coreRspQ
 
     std::map<block_addr_t,vec_entry_target_info> m_vec_entry;//TODO
     std::map<uint32_t,special_target_info> m_special_entry;

@@ -52,7 +52,7 @@ class l1_data_cache : public cache_building_block{
 public:
     l1_data_cache(){
         m_coreReq_ptr=NULL;
-        m_mshr = mshr(&m_coreRsp_Q);
+        m_mshr = mshr(m_coreRsp_Q, m_memReq_Q);
     }
     
     void cycle(cycle_t time);
@@ -66,6 +66,7 @@ public:
     tag_array m_tag_array;
     mshr m_mshr;
     coreRsp_Q m_coreRsp_Q;
+    memReq_Q m_memReq_Q;
 };
 
 void l1_data_cache::cycle(cycle_t time){
@@ -108,6 +109,7 @@ void l1_data_cache::cycle(cycle_t time){
             //Fence
         }else {
             assert(m_coreReq_ptr->m_opcode==Amo);
+            //AMO
         }
     }
 }

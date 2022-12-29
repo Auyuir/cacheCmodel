@@ -11,6 +11,34 @@ enum LSU_cache_coreReq_opcode {
     Fence
 };
 
+enum LSU_cache_coreReq_type_amo {
+    notamo = 0xFF,
+    amoadd = 0x00,
+    amoxor = 0x01,
+    amoand = 0x03,
+    amoor = 0x02,
+    amomin = 0x04,
+    amomax = 0x05,
+    amominu = 0x06,
+    amomaxu = 0x07,
+    amoswap = 0x10
+};
+
+enum TL_UH_A_PARAM_AMOARITH {
+    MIN = 0x00,
+    MAX = 0x01,
+    MINU = 0x02,
+    MAXU = 0x03,
+    ADD = 0x04
+};
+
+enum TL_UH_A_PARAM_AMOLOGIC{
+    XOR = 0x00,
+    OR = 0x01,
+    AND = 0x02,
+    SWAP = 0x03
+};
+
 enum TL_UH_A_opcode {
     Get=4,
     PutFullData=0,
@@ -20,32 +48,33 @@ enum TL_UH_A_opcode {
     //Intent=5
 };
 
+struct dcache_2_L2_memReq : cache_building_block {
+    public:
+    dcache_2_L2_memReq(){}
+
+    dcache_2_L2_memReq(enum TL_UH_A_opcode opcode, 
+        u_int32_t param, u_int32_t source_id, u_int64_t block_idx) 
+        : a_opcode(opcode), a_param(param),
+        a_source(source_id){
+        a_address = block_idx << LOGB2(NLINE*LINESIZE);
+        if (a_opcode == Get)
+            a_data = false;
+        else
+            a_data = true;
+        //a_data = //actually no need to model data in C
+    }
+
+    enum TL_UH_A_opcode a_opcode;
+    u_int32_t a_param;
+    //int a_size;
+    u_int32_t a_source; //TODO
+    u_int64_t a_address;
+    //u_int32_t a_mask;
+    bool a_data;//only to indicate whether there is a data transaction
+    //std::array<u_int32_t,NLINE>* a_data;
+};
+
 class memReq_Q : cache_building_block{
-    struct dcache_2_L2_memReq : cache_building_block {
-        public:
-        dcache_2_L2_memReq(enum TL_UH_A_opcode opcode, u_int32_t param, u_int32_t source_id, u_int64_t block_idx, u_int32_t mask = 0xFFFF){//std::array<u_int32_t,NLINE> *data=NULL,
-            a_opcode = opcode;
-            a_param = param;
-            a_source = source_id;
-            a_address = block_idx << LOGB2(NLINE*LINESIZE);
-            a_mask = mask;
-            if (a_opcode == Get)
-                a_data = false;
-            else
-                a_data = true;
-            //a_data = //actually no need to model data in C
-        }
-
-        enum TL_UH_A_opcode a_opcode;
-        u_int32_t a_param;
-        //int a_size;
-        u_int32_t a_source; //TODO
-        u_int64_t a_address;
-        u_int32_t a_mask;
-        bool a_data;//only to indicate whether there is a data transaction
-        //std::array<u_int32_t,NLINE>* a_data;
-    };
-
 public:
     std::deque<dcache_2_L2_memReq> m_Q;
 };
