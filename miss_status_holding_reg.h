@@ -18,17 +18,18 @@ class vec_subentry : public cache_building_block{
 public:
     vec_subentry(){}
 
-    vec_subentry(u_int32_t req_id)//,
-    //std::array<bool,NLANE> mask,vec_nlane_t block_offset,vec_nlane_t word_offset)
-    :m_req_id(req_id){}//, m_mask(mask),
+    vec_subentry(u_int32_t req_id,u_int32_t wid,std::array<bool,NLANE> mask)//,
+    //vec_nlane_t block_offset,vec_nlane_t word_offset)
+    :m_req_id(req_id), m_wid(wid), m_mask(mask){}//,
     //m_block_offset(block_offset), m_word_offset(word_offset){}
 private:
     //bool m_sub_valid;
 
     //enum entry_target_type m_sub_type; 
     u_int32_t m_req_id;
+    u_int32_t m_wid;
 
-    //std::array<bool,NLANE> m_mask;
+    std::array<bool,NLANE> m_mask;
     //vec_nlane_t m_block_offset;
     //vec_nlane_t m_word_offset;
 
@@ -72,17 +73,20 @@ private:
 };
 
 class special_target_info{
+    typedef u_int32_t block_addr_t;
 public:
     special_target_info(){}
 
-    special_target_info(enum entry_target_type type, u_int32_t req_id, 
-    enum LSU_cache_coreReq_type_amo amo_type=notamo):
-        m_type(type),m_req_id(req_id),m_amo_type(amo_type){}
+    special_target_info(enum entry_target_type type, u_int32_t req_id,
+    block_addr_t m_block_idx,enum LSU_cache_coreReq_type_amo amo_type=notamo):
+        m_type(type),m_amo_type(amo_type){}
 
-    private:
+private:
     enum entry_target_type m_type;
-    u_int32_t m_req_id;
+    //u_int32_t m_req_id;
+    u_int32_t m_wid;
     enum LSU_cache_coreReq_type_amo m_amo_type;
+    block_addr_t m_block_idx;
     
     bool m_have_issued_2_memReq;
     friend class mshr;
@@ -173,7 +177,10 @@ public:
 
     //from special entry
     void special_arrange_core_rsp(u_int32_t req_id){
-        dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(req_id,true);
+        auto& the_entry = m_special_entry[req_id];
+        std::array<bool,NLANE> mask_of_scalar = {true };
+        dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
+            req_id,true,the_entry.m_wid,mask_of_scalar);
         m_coreRsp_Q.m_Q.push_back(new_rsp);
         //AMO,LR,SC都不引起data access写入。
         //AMO和LR向coreRsp.data写回数据
@@ -188,7 +195,8 @@ public:
         auto& current_main = m_vec_entry[block_idx].m_sub_en;
         assert(!current_main.empty());
         auto& current_sub = current_main.back();
-        dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(current_sub.m_req_id,true);
+        dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
+            current_sub.m_req_id,true,current_sub.m_wid,current_sub.m_mask);
         //引发一次data access写入
         m_coreRsp_Q.m_Q.push_back(new_rsp);
         current_main.pop_back();
@@ -256,10 +264,12 @@ public:
                 special_target_info new_special;
                 if (m_miss_req_ptr->m_type == AMO){
                     new_special = special_target_info(m_miss_req_ptr->m_type,
-                    m_miss_req_ptr->m_sub.m_req_id, m_miss_req_ptr->m_amo_type);
+                    m_miss_req_ptr->m_sub.m_req_id, 
+                    m_miss_req_ptr->m_block_addr, m_miss_req_ptr->m_amo_type);
                 }else{
                     new_special = special_target_info(m_miss_req_ptr->m_type,
-                    m_miss_req_ptr->m_sub.m_req_id);
+                    m_miss_req_ptr->m_sub.m_req_id,
+                    m_miss_req_ptr->m_block_addr);
                 }
                 
                 m_special_entry.insert({m_miss_req_ptr->m_sub.m_req_id,new_special});
@@ -291,11 +301,11 @@ public:
                     if (iter->second.m_type == LOAD_RESRV){
                         new_memReq = dcache_2_L2_memReq(
                         Get, 1,//a_op = Get, a_param = 1 for LR
-                        iter->second.m_req_id, iter->first);
+                        iter->first, iter->second.m_block_idx);
                     } else if (iter->second.m_type == STORE_COND){
                         new_memReq = dcache_2_L2_memReq(
                         PutPartialData, 1,//for SC
-                        iter->second.m_req_id, iter->first);
+                        iter->first, iter->second.m_block_idx);
                     } else{
                         assert(iter->second.m_type == AMO);
                         enum TL_UH_A_opcode amo_op;
@@ -303,7 +313,7 @@ public:
                         cast_amo_LSU_type_2_TLUH_param(iter->second.m_amo_type,amo_op,amo_param);
                         new_memReq = dcache_2_L2_memReq(
                         amo_op, amo_param,
-                        iter->second.m_req_id, iter->first);
+                        iter->first, iter->second.m_block_idx);
                     }
                     m_memReq_Q.m_Q.push_back(new_memReq);
                     iter->second.m_have_issued_2_memReq = true;

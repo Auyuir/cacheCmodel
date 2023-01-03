@@ -81,14 +81,25 @@ public:
 
 struct dcache_2_LSU_coreRsp : cache_building_block {
 public:
-    dcache_2_LSU_coreRsp(u_int32_t reg_idxw, bool data){//std::array<u_int32_t,NLINE> *data=NULL,std::array<bool,NLANE> mask, 
+    dcache_2_LSU_coreRsp(u_int32_t reg_idxw, bool data, 
+    u_int32_t wid, std::array<bool,NLANE> mask){
         m_reg_idxw = reg_idxw;
-        //m_mask = mask;
+        m_mask = mask;
         m_data = data;
+        m_wid = wid;
+        bool m_wxd = true;//IsScalar?
+        for (int i = 1;i<NLANE;++i){
+            if (m_mask[i]==true){
+                m_wxd = false;
+                break;
+            }
+        }
     }
 
+    u_int32_t m_wid;
     u_int32_t m_reg_idxw;
-    //std::array<bool,NLANE> m_mask;
+    std::array<bool,NLANE> m_mask;
+    bool m_wxd;//indicate whether its a scalar instruction
     bool m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
 };
