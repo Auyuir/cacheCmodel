@@ -76,6 +76,11 @@ struct dcache_2_L2_memReq : cache_building_block {
 
 class memReq_Q : cache_building_block{
 public:
+    bool is_full(){
+        assert(m_Q.size() <= MEM_REQ_Q_DEPTH);
+        return m_Q.size() == MEM_REQ_Q_DEPTH;
+    }
+
     std::deque<dcache_2_L2_memReq> m_Q;
 };
 
@@ -106,6 +111,11 @@ public:
 
 class coreRsp_Q : cache_building_block {
 public:
+    bool is_full(){
+        assert(m_Q.size() <= CORE_RSP_Q_DEPTH);
+        return m_Q.size() == CORE_RSP_Q_DEPTH;
+    }
+
     std::deque<dcache_2_LSU_coreRsp> m_Q;
 };
 
