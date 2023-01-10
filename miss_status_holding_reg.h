@@ -14,6 +14,18 @@ enum entry_target_type{
     AMO
 };
 
+enum vec_mshr_status{
+    PRIMARY_AVAIL,
+    PRIMARY_FULL,
+    SECONDARY_AVAIL,
+    SECONDARY_FULL
+};
+
+enum spe_mshr_status{
+    AVAIL,
+    FULL
+};
+
 class vec_subentry : public cache_building_block{
 public:
     vec_subentry(){}
@@ -210,6 +222,40 @@ public:
         }
         
         return false;
+    }
+
+    enum vec_mshr_status probe_vec(){
+        if(is_primary_miss()){
+            assert(m_vec_entry.size() <= N_MSHR_ENTRY);
+            if(m_vec_entry.size() == N_MSHR_ENTRY){
+                return PRIMARY_FULL;
+                //std::cout << "primary miss + main entry full at " << time << std::endl;//TODO: 分级debug info机制
+            }else{
+                return PRIMARY_AVAIL;
+            }
+        }else{
+            assert(m_vec_entry.size() > 0);
+            auto& the_main = m_vec_entry[m_miss_req_ptr->m_block_addr];
+            if (the_main.sub_is_full()){
+                return SECONDARY_FULL;
+                //std::cout << "secondary miss + sub entry full at " << time << std::endl;
+            }else{
+                return SECONDARY_AVAIL;
+            }
+        }
+    }
+
+    enum spe_mshr_status probe_spe(){
+        assert(m_special_entry.size() <= N_MSHR_SPECIAL_ENTRY);
+        if(m_special_entry.size() == N_MSHR_SPECIAL_ENTRY){
+            return FULL;
+        }else{
+            return AVAIL;
+        }
+    }
+
+    void allocate_vec(){
+        
     }
 
     void cycle_in(bool& mshr_2_coreRsp, cycle_t time){

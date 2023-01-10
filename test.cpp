@@ -57,9 +57,11 @@ public:
     
     void cycle(cycle_t time);
 
+    void pipe2_cycle(cycle_t time);
+
 public:
     LSU_2_dcache_coreReq* m_coreReq_ptr;
-
+    LSU_2_dcache_coreReq* m_coreReq_pipe_reg_ptr;//pipe1和2之间的流水线寄存器
 //private:
     //mshr_miss_req_t* m_miss_req_ptr;
 
@@ -69,8 +71,59 @@ public:
     memReq_Q m_memReq_Q;
 };
 
+void l1_data_cache::pipe2_cycle(cycle_t time){
+    auto& pipe1_r_ptr = m_coreReq_pipe_reg_ptr;
+    if(pipe1_r_ptr != nullptr){
+        auto pipe1_opcode = pipe1_r_ptr->m_opcode;
+        if (pipe1_opcode==Read || pipe1_opcode==Write || pipe1_opcode==Amo){
+            if(pipe1_r_ptr->m_type == 1 ||//LR/SC
+            pipe1_opcode==Amo){
+                if (m_mshr.probe_spe() == AVAIL){
+                    if (!m_memReq_Q.is_full()){
+                        //push spe MSHR
+                        //push memReq_Q
+                        // **** TODO ****
+                    }
+                }
+            }else{//regular R/W
+                u_int32_t way_idx=0;//hit情况下所在的way
+                enum tag_access_status status = 
+                    m_tag_array.probe(pipe1_r_ptr->m_block_idx,way_idx);
+                if (status == HIT){
+                    if(!m_coreRsp_Q.is_full()){
+                        m_tag_array.read_hit_update_access_time(pipe1_r_ptr->m_block_idx,way_idx,time);
+                        dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r_ptr->m_reg_idxw,
+                            true,pipe1_r_ptr->m_wid,pipe1_r_ptr->m_mask);
+                        //TODO 体现access data的周期
+                        //TODO 下面的push行为需要再隔一个周期
+                        // **** TODO ****
+                        m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
+
+                        pipe1_r_ptr = nullptr;
+                    }
+                }else{//status == MISS
+                    enum vec_mshr_status mshr_status = m_mshr.probe_vec();
+                    if (mshr_status == PRIMARY_AVAIL){
+                        if (!m_memReq_Q.is_full()){
+                            //TODO push memReq_Q
+                            //TODO push MSHR new main entry
+                            // **** TODO ****
+                        }
+                    }else if(mshr_status == SECONDARY_AVAIL){
+                        //TODO push MSHR new sub entry
+                        // **** TODO ****
+                    }//PRIMARY_FULL和SECONDARY_FULL直接跳过
+                }
+            }
+        }
+    }
+
+    //不清除pipe_r_ptr，下个周期再处理一回
+}
+
 /*所有可操作的对象包括m_coreRsp_Q, m_mshr.m_miss_req_ptr
 */
+//TODO：把这个变成pipe1_cycle
 void l1_data_cache::cycle(cycle_t time){
 
     bool mshr_2_coreRsp = false;
