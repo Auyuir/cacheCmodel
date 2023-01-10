@@ -74,7 +74,8 @@ public:
 void l1_data_cache::pipe2_cycle(cycle_t time){
     auto& pipe1_r_ptr = m_coreReq_pipe_reg_ptr;
     if(pipe1_r_ptr != nullptr){
-        auto pipe1_opcode = pipe1_r_ptr->m_opcode;
+        auto const pipe1_opcode = pipe1_r_ptr->m_opcode;
+        auto const pipe1_block_idx = pipe1_r_ptr->m_block_idx;
         if (pipe1_opcode==Read || pipe1_opcode==Write || pipe1_opcode==Amo){
             if(pipe1_r_ptr->m_type == 1 ||//LR/SC
             pipe1_opcode==Amo){
@@ -88,10 +89,10 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
             }else{//regular R/W
                 u_int32_t way_idx=0;//hit情况下所在的way
                 enum tag_access_status status = 
-                    m_tag_array.probe(pipe1_r_ptr->m_block_idx,way_idx);
+                    m_tag_array.probe(pipe1_block_idx,way_idx);
                 if (status == HIT){
                     if(!m_coreRsp_Q.is_full()){
-                        m_tag_array.read_hit_update_access_time(pipe1_r_ptr->m_block_idx,way_idx,time);
+                        m_tag_array.read_hit_update_access_time(pipe1_block_idx,way_idx,time);
                         dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r_ptr->m_reg_idxw,
                             true,pipe1_r_ptr->m_wid,pipe1_r_ptr->m_mask);
                         //TODO 体现access data的周期
@@ -102,16 +103,22 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                         pipe1_r_ptr = nullptr;
                     }
                 }else{//status == MISS
-                    enum vec_mshr_status mshr_status = m_mshr.probe_vec();
+                    enum vec_mshr_status mshr_status = m_mshr.probe_vec(pipe1_block_idx);
                     if (mshr_status == PRIMARY_AVAIL){
                         if (!m_memReq_Q.is_full()){
                             //TODO push memReq_Q
-                            //TODO push MSHR new main entry
+                            vec_subentry new_vec_sub = vec_subentry(
+                                pipe1_r_ptr->m_reg_idxw, pipe1_r_ptr->m_wid, pipe1_r_ptr->m_mask);
+                            m_mshr.allocate_vec_main(pipe1_block_idx, new_vec_sub);
                             // **** TODO ****
+                            pipe1_r_ptr = nullptr;
                         }
                     }else if(mshr_status == SECONDARY_AVAIL){
-                        //TODO push MSHR new sub entry
+                        vec_subentry new_vec_sub = vec_subentry(
+                            pipe1_r_ptr->m_reg_idxw, pipe1_r_ptr->m_wid, pipe1_r_ptr->m_mask);
+                        m_mshr.allocate_vec_sub(pipe1_block_idx, new_vec_sub);
                         // **** TODO ****
+                        pipe1_r_ptr = nullptr;
                     }//PRIMARY_FULL和SECONDARY_FULL直接跳过
                 }
             }
@@ -146,21 +153,8 @@ void l1_data_cache::cycle(cycle_t time){
                         m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
                         m_coreReq_ptr = nullptr;
                     }//else 不清空coreReq，下个周期重新判断一次hit/miss
-                }else if(status == MISS){
-                    if (m_mshr.m_miss_req_ptr == nullptr){
-                        vec_subentry read_miss_sub = vec_subentry(
-                            m_coreReq_ptr->m_reg_idxw,
-                            m_coreReq_ptr->m_wid,
-                            m_coreReq_ptr->m_mask);
-                        mshr_miss_req_t new_miss_req = mshr_miss_req_t(
-                            m_coreReq_ptr->m_block_idx,
-                            REGULAR_READ_MISS,
-                            read_miss_sub);
-                        m_mshr.m_miss_req_ptr = &new_miss_req;
-                        m_coreReq_ptr = nullptr;
-                    }//else 不清空coreReq
                 }
-            }else{//m_coreReq_ptr->m_type == 1
+            }/*else{//m_coreReq_ptr->m_type == 1
                 if (m_mshr.m_miss_req_ptr == nullptr){
                         vec_subentry lrsc_sub = vec_subentry(
                             m_coreReq_ptr->m_reg_idxw,
@@ -179,7 +173,7 @@ void l1_data_cache::cycle(cycle_t time){
                         m_mshr.m_miss_req_ptr = &new_lrsc_mshr_req;
                         m_coreReq_ptr = nullptr;
                 }
-            }
+            }*/
         }
         else if(m_coreReq_ptr->m_opcode==Fence){
             //Fence

@@ -142,7 +142,6 @@ public:
 
     mshr(coreRsp_Q& coreRsp_Q_obj, memReq_Q& memReq_Q_obj)
         :m_coreRsp_Q(coreRsp_Q_obj), m_memReq_Q(memReq_Q_obj){
-        m_miss_req_ptr = nullptr;
         m_miss_rsp_ptr = nullptr;
     }
 
@@ -224,8 +223,8 @@ public:
         return false;
     }
 
-    enum vec_mshr_status probe_vec(){
-        if(is_primary_miss()){
+    enum vec_mshr_status probe_vec(block_addr_t block_idx){
+        if(is_primary_miss(block_idx)){
             assert(m_vec_entry.size() <= N_MSHR_ENTRY);
             if(m_vec_entry.size() == N_MSHR_ENTRY){
                 return PRIMARY_FULL;
@@ -235,7 +234,7 @@ public:
             }
         }else{
             assert(m_vec_entry.size() > 0);
-            auto& the_main = m_vec_entry[m_miss_req_ptr->m_block_addr];
+            auto& the_main = m_vec_entry[block_idx];
             if (the_main.sub_is_full()){
                 return SECONDARY_FULL;
                 //std::cout << "secondary miss + sub entry full at " << time << std::endl;
@@ -249,13 +248,29 @@ public:
         assert(m_special_entry.size() <= N_MSHR_SPECIAL_ENTRY);
         if(m_special_entry.size() == N_MSHR_SPECIAL_ENTRY){
             return FULL;
+            //std::cout << "LR/SC AMO + special entry full at " << time << std::endl;
         }else{
             return AVAIL;
         }
     }
 
-    void allocate_vec(){
-        
+    void allocate_vec_main(block_addr_t block_idx, vec_subentry& vec_sub){
+        vec_entry_target_info new_main = vec_entry_target_info(vec_sub.m_req_id,vec_sub);
+        m_vec_entry.insert({block_idx,new_main});//deep copy?
+    }
+
+    void allocate_vec_sub(block_addr_t block_idx, vec_subentry& vec_sub){
+        auto& the_main = m_vec_entry[block_idx];
+        the_main.allocate_sub(vec_sub);
+    }
+
+    void allocate_special(block_addr_t block_idx, enum entry_target_type type, 
+        u_int32_t req_id, enum LSU_cache_coreReq_type_amo amo_type){
+        //TODO remove amo_type
+        special_target_info new_special;
+        new_special = special_target_info(type, req_id, block_idx, amo_type);
+        m_special_entry.insert({req_id, new_special});
+        //TODO 添加有关TL_UH_A_PARAM_AMO的内容
     }
 
     void cycle_in(bool& mshr_2_coreRsp, cycle_t time){
@@ -282,48 +297,6 @@ public:
                         break;
                     }
                 }
-            }
-        }else if(m_miss_req_ptr != nullptr){
-            if(m_miss_req_ptr->m_type == REGULAR_READ_MISS){
-                if (is_primary_miss()){
-                    assert(m_vec_entry.size() <= N_MSHR_ENTRY);
-                    if(m_vec_entry.size() == N_MSHR_ENTRY){
-                        return ;
-                        std::cout << "primary miss + main entry full at " << time << std::endl;
-                    }
-                    vec_entry_target_info new_main = vec_entry_target_info(m_miss_req_ptr->m_sub.m_req_id,m_miss_req_ptr->m_sub);
-                    m_vec_entry.insert({m_miss_req_ptr->m_block_addr,new_main});//deep copy?
-                }else{
-                    assert(m_vec_entry.size() > 0);
-                    auto& the_main = m_vec_entry[m_miss_req_ptr->m_block_addr];
-                    if (the_main.sub_is_full()){
-                        return ;
-                        std::cout << "secondary miss + sub entry full at " << time << std::endl;
-                    }
-                    the_main.allocate_sub(m_miss_req_ptr->m_sub);
-                }
-                //deal with missReq
-                m_miss_req_ptr = nullptr;
-            }else{//LR SC AMO
-                assert(m_special_entry.size() <= N_MSHR_SPECIAL_ENTRY);
-                if(m_special_entry.size() == N_MSHR_SPECIAL_ENTRY){
-                    return;
-                    std::cout << "LR/SC AMO + special entry full at " << time << std::endl;
-                }
-                special_target_info new_special;
-                if (m_miss_req_ptr->m_type == AMO){
-                    new_special = special_target_info(m_miss_req_ptr->m_type,
-                    m_miss_req_ptr->m_sub.m_req_id, 
-                    m_miss_req_ptr->m_block_addr, m_miss_req_ptr->m_amo_type);
-                }else{
-                    new_special = special_target_info(m_miss_req_ptr->m_type,
-                    m_miss_req_ptr->m_sub.m_req_id,
-                    m_miss_req_ptr->m_block_addr);
-                }
-                
-                m_special_entry.insert({m_miss_req_ptr->m_sub.m_req_id,new_special});
-                //TODO 添加有关TL_UH_A_PARAM_AMO的内容
-                m_miss_req_ptr = nullptr;
             }
         }
         return;
@@ -374,17 +347,16 @@ public:
         }
     }
 
-    bool is_primary_miss(){
-        assert(m_miss_req_ptr != NULL);
+    bool is_primary_miss(block_addr_t block_idx){
         //需要转换MSHR存储类型时（reg/SRAM）可以从这里着手考虑
         for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
-            if (iter->first == m_miss_req_ptr->m_block_addr)
+            if (iter->first == block_idx)
                 return true;
         }
         return false;
     }
 
-    mshr_miss_req_t* m_miss_req_ptr;
+    //mshr_miss_req_t* m_miss_req_ptr;
     mshr_miss_rsp_t* m_miss_rsp_ptr;
     
     private:
