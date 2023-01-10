@@ -93,7 +93,10 @@ private:
 };
 
 class mshr_miss_req_t : public cache_building_block{
+    //missRsp不需要记录AMO的类型，但是missQ需要
 public:
+    mshr_miss_req_t(){};
+
     mshr_miss_req_t(u_int32_t block_addr, 
         enum entry_target_type type, vec_subentry sub,
         enum LSU_cache_coreReq_type_amo amo_type=notamo) : 
@@ -327,6 +330,7 @@ public:
 
     bool is_primary_miss(){
         assert(m_miss_req_ptr != NULL);
+        //需要转换MSHR存储类型时（reg/SRAM）可以从这里着手考虑
         for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
             if (iter->first == m_miss_req_ptr->m_block_addr)
                 return true;

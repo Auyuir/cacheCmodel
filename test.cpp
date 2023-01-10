@@ -69,13 +69,15 @@ public:
     memReq_Q m_memReq_Q;
 };
 
+/*所有可操作的对象包括m_coreRsp_Q, m_mshr.m_miss_req_ptr
+*/
 void l1_data_cache::cycle(cycle_t time){
 
     bool mshr_2_coreRsp = false;
     m_mshr.cycle_in(mshr_2_coreRsp, time);
 
     //deal with coreReq
-    if (m_coreReq_ptr == NULL){
+    if (m_coreReq_ptr == nullptr){
         //jump out if-else
     }else{
         if (m_coreReq_ptr->m_opcode==Read || m_coreReq_ptr->m_opcode==Write){
@@ -85,14 +87,14 @@ void l1_data_cache::cycle(cycle_t time){
                 u_int32_t way_idx=0;
                 enum tag_access_status status = m_tag_array.probe(m_coreReq_ptr->m_block_idx,way_idx);
                 if (status == HIT){
-                    m_tag_array.read_hit_update_access_time(m_coreReq_ptr->m_block_idx,way_idx,time);
-                    dcache_2_LSU_coreRsp read_hit_coreRsp(m_coreReq_ptr->m_reg_idxw,true,m_coreReq_ptr->m_wid,m_coreReq_ptr->m_mask);
-                    m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
-                    m_coreReq_ptr = NULL;
+                    if (m_coreRsp_Q.m_Q.size() < CORE_RSP_Q_DEPTH){
+                        m_tag_array.read_hit_update_access_time(m_coreReq_ptr->m_block_idx,way_idx,time);
+                        dcache_2_LSU_coreRsp read_hit_coreRsp(m_coreReq_ptr->m_reg_idxw,true,m_coreReq_ptr->m_wid,m_coreReq_ptr->m_mask);
+                        m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
+                        m_coreReq_ptr = nullptr;
+                    }//else 不清空coreReq，下个周期重新判断一次hit/miss
                 }else if(status == MISS){
-                    if (m_mshr.m_miss_req_ptr!=nullptr){
-                        //jump out if-else without clear m_coreReq_ptr
-                    }else{
+                    if (m_mshr.m_miss_req_ptr == nullptr){
                         vec_subentry read_miss_sub = vec_subentry(
                             m_coreReq_ptr->m_reg_idxw,
                             m_coreReq_ptr->m_wid,
@@ -102,12 +104,31 @@ void l1_data_cache::cycle(cycle_t time){
                             REGULAR_READ_MISS,
                             read_miss_sub);
                         m_mshr.m_miss_req_ptr = &new_miss_req;
-                    }
+                        m_coreReq_ptr = nullptr;
+                    }//else 不清空coreReq
                 }
-            }else if(m_coreReq_ptr->m_type == 1){//TODO
-                //LR / SC
+            }else{//m_coreReq_ptr->m_type == 1
+                if (m_mshr.m_miss_req_ptr == nullptr){
+                        vec_subentry lrsc_sub = vec_subentry(
+                            m_coreReq_ptr->m_reg_idxw,
+                            m_coreReq_ptr->m_wid,
+                            m_coreReq_ptr->m_mask);//TODO 以后换成SCALAR_MASK
+                        mshr_miss_req_t new_lrsc_mshr_req;
+                        if (m_coreReq_ptr->m_opcode == Read){
+                            new_lrsc_mshr_req = mshr_miss_req_t(
+                                m_coreReq_ptr->m_block_idx,
+                                LOAD_RESRV, lrsc_sub);
+                        }else if (m_coreReq_ptr->m_opcode == Write){
+                            new_lrsc_mshr_req = mshr_miss_req_t(
+                                m_coreReq_ptr->m_block_idx,
+                                STORE_COND, lrsc_sub);
+                        }
+                        m_mshr.m_miss_req_ptr = &new_lrsc_mshr_req;
+                        m_coreReq_ptr = nullptr;
+                }
             }
-        }else if(m_coreReq_ptr->m_opcode==Fence){
+        }
+        else if(m_coreReq_ptr->m_opcode==Fence){
             //Fence
         }else {
             assert(m_coreReq_ptr->m_opcode==Amo);
