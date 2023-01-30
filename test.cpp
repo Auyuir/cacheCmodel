@@ -59,9 +59,54 @@ public:
 
     void pipe2_cycle(cycle_t time);
 
+    void cast_amo_LSU_type_2_TLUH_param(enum LSU_cache_coreReq_type_amo coreReq_type, 
+    enum TL_UH_A_opcode& TL_opcode, u_int32_t& TL_param){
+        //TODO
+        switch(coreReq_type)
+        {
+            case amoadd:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(ADD);
+                break;
+            case amoxor:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(XOR);
+                break;
+            case amoand:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(AND);
+                break;
+            case amoor:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(OR);
+                break;
+            case amomin:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MIN);
+                break;
+            case amomax:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MAX);
+                break;
+            case amominu:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MINU);
+                break;
+            case amomaxu:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MAXU);
+                break;
+            case amoswap:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(SWAP);
+                break;
+        }
+    }
+
 public:
     LSU_2_dcache_coreReq* m_coreReq_ptr;
     LSU_2_dcache_coreReq* m_coreReq_pipe_reg_ptr;//pipe1和2之间的流水线寄存器
+    //TODO:[初版建模完成后]m_coreReq_pipe_reg_ptr不用和coreReq相同的类型，而是定制化
 //private:
     //mshr_miss_req_t* m_miss_req_ptr;
 
@@ -82,7 +127,17 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                 if (m_mshr.probe_spe() == AVAIL){
                     if (!m_memReq_Q.is_full()){
                         //push spe MSHR
+                        enum entry_target_type spe_type;
+                        if(pipe1_opcode==Amo)
+                            spe_type = AMO;
+                        else if (pipe1_opcode == Read)
+                            spe_type = LOAD_RESRV;
+                        else
+                            spe_type = STORE_COND;
+                        m_mshr.allocate_special(spe_type, 
+                            pipe1_r_ptr->m_reg_idxw, pipe1_r_ptr->m_wid);
                         //push memReq_Q
+                        dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq();
                         // **** TODO ****
                     }
                 }
@@ -134,7 +189,7 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
 void l1_data_cache::cycle(cycle_t time){
 
     bool mshr_2_coreRsp = false;
-    m_mshr.cycle_in(mshr_2_coreRsp, time);
+    //m_mshr.cycle_in(mshr_2_coreRsp, time);
 
     //deal with coreReq
     if (m_coreReq_ptr == nullptr){

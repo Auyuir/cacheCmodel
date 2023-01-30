@@ -87,23 +87,25 @@ private:
 class special_target_info{
     typedef u_int32_t block_addr_t;
 public:
+    //MSHR中不记录amo类型，因为MSHR中记录的信息仅用于coreRsp，不再用于missReq
+    //missReq相关职能移入memReq_Q
     special_target_info(){}
 
-    special_target_info(enum entry_target_type type, u_int32_t req_id,
-    block_addr_t m_block_idx,enum LSU_cache_coreReq_type_amo amo_type=notamo):
-        m_type(type),m_amo_type(amo_type){}
+    special_target_info(enum entry_target_type type, u_int32_t wid):
+        m_type(type),m_wid(wid){}
 
 private:
     enum entry_target_type m_type;
-    //u_int32_t m_req_id;
+    //u_int32_t m_req_id;作为speMSHR entry的索引了
     u_int32_t m_wid;
-    enum LSU_cache_coreReq_type_amo m_amo_type;
-    block_addr_t m_block_idx;
+    //enum LSU_cache_coreReq_type_amo m_amo_type;
+    //block_addr_t m_block_idx;
     
-    bool m_have_issued_2_memReq;
+    //bool m_have_issued_2_memReq;
     friend class mshr;
 };
 
+/*deprecated
 class mshr_miss_req_t : public cache_building_block{
     //missRsp不需要记录AMO的类型，但是missQ需要
 public:
@@ -122,7 +124,7 @@ private:
     enum LSU_cache_coreReq_type_amo m_amo_type;
 
     friend class mshr;
-};
+};*/
 
 class mshr_miss_rsp_t : public cache_building_block{
 public:
@@ -145,50 +147,6 @@ public:
         m_miss_rsp_ptr = nullptr;
     }
 
-    void cast_amo_LSU_type_2_TLUH_param(enum LSU_cache_coreReq_type_amo coreReq_type, 
-    enum TL_UH_A_opcode& TL_opcode, u_int32_t& TL_param){
-        //TODO
-        switch(coreReq_type)
-        {
-            case amoadd:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(ADD);
-                break;
-            case amoxor:
-                TL_opcode = LogicalData;
-                TL_param = u_int32_t(XOR);
-                break;
-            case amoand:
-                TL_opcode = LogicalData;
-                TL_param = u_int32_t(AND);
-                break;
-            case amoor:
-                TL_opcode = LogicalData;
-                TL_param = u_int32_t(OR);
-                break;
-            case amomin:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(MIN);
-                break;
-            case amomax:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(MAX);
-                break;
-            case amominu:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(MINU);
-                break;
-            case amomaxu:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(MAXU);
-                break;
-            case amoswap:
-                TL_opcode = LogicalData;
-                TL_param = u_int32_t(SWAP);
-                break;
-        }
-    }
-
     //from special entry
     void special_arrange_core_rsp(u_int32_t req_id){
         auto& the_entry = m_special_entry[req_id];
@@ -199,6 +157,7 @@ public:
         //AMO,LR,SC都不引起data access写入。
         //AMO和LR向coreRsp.data写回数据
         //SC成功向coreRsp.data写0，失败写1
+        //coreRsp.data的具体内容在本模型中不会体现
         m_special_entry.erase(req_id);
         return;
     }
@@ -264,45 +223,17 @@ public:
         the_main.allocate_sub(vec_sub);
     }
 
-    void allocate_special(block_addr_t block_idx, enum entry_target_type type, 
-        u_int32_t req_id, enum LSU_cache_coreReq_type_amo amo_type){
-        //TODO remove amo_type
+    void allocate_special(enum entry_target_type type, 
+        u_int32_t req_id, u_int32_t wid){
         special_target_info new_special;
-        new_special = special_target_info(type, req_id, block_idx, amo_type);
+        new_special = special_target_info(type, wid);
         m_special_entry.insert({req_id, new_special});
         //TODO 添加有关TL_UH_A_PARAM_AMO的内容
     }
 
-    void cycle_in(bool& mshr_2_coreRsp, cycle_t time){
-        if(m_miss_rsp_ptr != nullptr && m_coreRsp_Q.m_Q.size() < CORE_RSP_Q_DEPTH){
-            bool special_miss_rsp = false;
-            for (auto iter = m_special_entry.begin(); iter != m_special_entry.end(); ++iter) {
-                if (iter->first == m_miss_rsp_ptr->id()){
-                    //launch a report to coreRsp
-                    //mshr_2_coreRsp = arrange_core_rsp();
-                    special_arrange_core_rsp(iter->first);
-                    m_miss_rsp_ptr = nullptr;
-                    special_miss_rsp = true;
-                    break;
-                }
-            }
-            if (!special_miss_rsp){
-                for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
-                    //这里对比m_req_id就是“MSHR存block_idx作为主entry，missRsp用req_id作为标识符”的方式
-                    if (iter->second.m_req_id == m_miss_rsp_ptr->id()){
-                        bool all_sub_entry_done = vec_arrange_core_rsp(iter->first);
-                        if (all_sub_entry_done){
-                            m_miss_rsp_ptr = nullptr;    
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        return;
-    }
-
     //函数返回值指示本周期是否向memReq发送内容
+    /*deprecated
+    移动相关功能到memReq_Q
     bool cycle_out(){
         //TODO:vec_entry和special_entry有先后顺序的问题
         //TODO:考虑MSHR对memReqQ写入资格审查的问题
@@ -346,6 +277,7 @@ public:
             return false;
         }
     }
+    */
 
     bool is_primary_miss(block_addr_t block_idx){
         //需要转换MSHR存储类型时（reg/SRAM）可以从这里着手考虑
