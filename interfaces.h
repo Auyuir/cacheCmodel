@@ -87,11 +87,8 @@ public:
 struct dcache_2_LSU_coreRsp : cache_building_block {
 public:
     dcache_2_LSU_coreRsp(u_int32_t reg_idxw, bool data, 
-    u_int32_t wid, std::array<bool,NLANE> mask){
-        m_reg_idxw = reg_idxw;
-        m_mask = mask;
-        m_data = data;
-        m_wid = wid;
+        u_int32_t wid, std::array<bool,NLANE> mask):m_wid(wid),
+        m_reg_idxw(reg_idxw),m_mask(mask),m_data(data){
         bool m_wxd = true;//IsScalar?
         for (int i = 1;i<NLANE;++i){
             if (m_mask[i]==true){
