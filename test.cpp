@@ -59,6 +59,8 @@ public:
 
     void pipe2_cycle(cycle_t time);
 
+    void memReq_Q_cycle(cycle_t time);
+
     void cast_amo_LSU_type_2_TLUH_param(enum LSU_cache_coreReq_type_amo coreReq_type, 
     enum TL_UH_A_opcode& TL_opcode, u_int32_t& TL_param){
         //TODO
@@ -107,8 +109,7 @@ public:
     LSU_2_dcache_coreReq* m_coreReq_ptr;
     LSU_2_dcache_coreReq* m_coreReq_pipe_reg_ptr;//pipe1和2之间的流水线寄存器
     //TODO:[初版建模完成后]m_coreReq_pipe_reg_ptr不用和coreReq相同的类型，而是定制化
-//private:
-    //mshr_miss_req_t* m_miss_req_ptr;
+    bool m_memReq_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输memReq
 
     tag_array m_tag_array;
     mshr m_mshr;
@@ -126,19 +127,34 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
             pipe1_opcode==Amo){
                 if (m_mshr.probe_spe() == AVAIL){
                     if (!m_memReq_Q.is_full()){
+                        enum entry_target_type new_spe_type;
+
+                        enum TL_UH_A_opcode new_mReq_opcode;
+                        u_int32_t new_mReq_param;
+
                         //push spe MSHR
-                        enum entry_target_type spe_type;
-                        if(pipe1_opcode==Amo)
-                            spe_type = AMO;
-                        else if (pipe1_opcode == Read)
-                            spe_type = LOAD_RESRV;
-                        else
-                            spe_type = STORE_COND;
-                        m_mshr.allocate_special(spe_type, 
+                        if(pipe1_opcode==Amo){
+                            new_spe_type = AMO;
+                            cast_amo_LSU_type_2_TLUH_param(pipe1_r_ptr->m_amo_type,
+                                new_mReq_opcode,new_mReq_param);
+                        }
+                        else if (pipe1_opcode == Read){
+                            new_spe_type = LOAD_RESRV;
+                            new_mReq_opcode = Get;
+                            new_mReq_param = 0x1;
+                        }
+                        else{
+                            new_spe_type = STORE_COND;
+                            new_mReq_opcode = PutFullData;
+                            new_mReq_param = 0x1;
+                        }
+                        m_mshr.allocate_special(new_spe_type, 
                             pipe1_r_ptr->m_reg_idxw, pipe1_r_ptr->m_wid);
                         //push memReq_Q
-                        dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq();
-                        // **** TODO ****
+                        dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq(
+                            new_mReq_opcode, new_mReq_param, 
+                            pipe1_r_ptr->m_reg_idxw, pipe1_block_idx);
+                        m_memReq_Q.m_Q.push_back(new_spe_req);
                     }
                 }
             }else{//regular R/W
@@ -237,6 +253,14 @@ void l1_data_cache::cycle(cycle_t time){
             //AMO
         }
     }
+}
+
+//需要tb先取出当前memReq_Q里front的内容之后，再运行该函数
+void l1_data_cache::memReq_Q_cycle(cycle_t time){
+    if(m_memReq_ready){
+        m_memReq_Q.m_Q.pop_front();
+    }
+    return;
 }
 
 int main() {

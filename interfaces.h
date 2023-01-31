@@ -123,13 +123,14 @@ struct LSU_2_dcache_coreReq : cache_building_block {
 public:
     LSU_2_dcache_coreReq(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
         u_int32_t wid, u_int32_t req_id, u_int64_t block_idx,vec_nlane_t perLane_addr, 
-        std::array<bool,NLANE> mask){//std::array<u_int32_t,NLINE> *data=NULL,
+        std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo){
         m_opcode = opcode;
         m_type = type;
         m_wid = wid;//used for coreRsp
         m_reg_idxw = req_id;//used for coreRsp
         m_block_idx = block_idx;
         m_mask = mask;
+        m_amo_type = amo_type;
         if (opcode == Read | opcode == Fence)
             m_data = false;
         else
@@ -139,6 +140,7 @@ public:
 
     enum LSU_cache_coreReq_opcode m_opcode;
     u_int32_t m_type;
+    enum LSU_cache_coreReq_type_amo m_amo_type;//在硬件中，这个变量和type合用一个信号
     u_int32_t m_wid;
     u_int32_t m_reg_idxw;
     u_int64_t m_block_idx;
