@@ -47,7 +47,6 @@ public:
     coreRsp_Q* m_coreRsp_Q_ptr;
 
 };*/
-
 class l1_data_cache : public cache_building_block{
 public:
     l1_data_cache(){
@@ -57,7 +56,13 @@ public:
     
     void cycle(cycle_t time);
 
+    //cache主体周期，产生道路分歧
     void pipe2_cycle(cycle_t time);
+
+    //coreReq-coreRsp hit时，从data SRAM到coreRsp_Q
+    void pipe3_cycle();
+
+    void coreRsp_Q_cycle(cycle_t time);
 
     void memReq_Q_cycle(cycle_t time);
 
@@ -107,8 +112,10 @@ public:
 
 public:
     LSU_2_dcache_coreReq* m_coreReq_ptr;
-    LSU_2_dcache_coreReq* m_coreReq_pipe_reg_ptr;//pipe1和2之间的流水线寄存器
-    //TODO:[初版建模完成后]m_coreReq_pipe_reg_ptr不用和coreReq相同的类型，而是定制化
+    LSU_2_dcache_coreReq* m_coreReq_pipe1_reg_ptr;//pipe1和2之间的流水线寄存器
+    //TODO:[初版建模完成后]m_coreReq_pipe1_reg_ptr不用和coreReq相同的类型，而是定制化
+    dcache_2_LSU_coreRsp* m_hit_pipe2_reg_ptr;//coreReq-coreRsp hit 路径上，pipe2和3之间的流水线寄存器
+    bool m_coreRsp_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输coreRsp
     bool m_memReq_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输memReq
 
     tag_array m_tag_array;
@@ -118,7 +125,7 @@ public:
 };
 
 void l1_data_cache::pipe2_cycle(cycle_t time){
-    auto& pipe1_r_ptr = m_coreReq_pipe_reg_ptr;
+    auto& pipe1_r_ptr = m_coreReq_pipe1_reg_ptr;
     if(pipe1_r_ptr != nullptr){
         auto const pipe1_opcode = pipe1_r_ptr->m_opcode;
         auto const pipe1_block_idx = pipe1_r_ptr->m_block_idx;
@@ -128,10 +135,8 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                 if (m_mshr.probe_spe() == AVAIL){
                     if (!m_memReq_Q.is_full()){
                         enum entry_target_type new_spe_type;
-
                         enum TL_UH_A_opcode new_mReq_opcode;
                         u_int32_t new_mReq_param;
-
                         //push spe MSHR
                         if(pipe1_opcode==Amo){
                             new_spe_type = AMO;
@@ -155,6 +160,8 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                             new_mReq_opcode, new_mReq_param, 
                             pipe1_r_ptr->m_reg_idxw, pipe1_block_idx);
                         m_memReq_Q.m_Q.push_back(new_spe_req);
+
+                        pipe1_r_ptr = nullptr;
                     }
                 }
             }else{//regular R/W
@@ -164,13 +171,11 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                 if (status == HIT){
                     if(!m_coreRsp_Q.is_full()){
                         m_tag_array.read_hit_update_access_time(pipe1_block_idx,way_idx,time);
+                        assert(m_hit_pipe2_reg_ptr==nullptr);
+                        //本模型不建模访问data SRAM行为，在此处对该SRAM发起访问，
                         dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r_ptr->m_reg_idxw,
                             true,pipe1_r_ptr->m_wid,pipe1_r_ptr->m_mask);
-                        //TODO 体现access data的周期
-                        //TODO 下面的push行为需要再隔一个周期
-                        // **** TODO ****
-                        m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
-
+                        m_hit_pipe2_reg_ptr = &read_hit_coreRsp;//TODO:有内存管理问题吗
                         pipe1_r_ptr = nullptr;
                     }
                 }else{//status == MISS
@@ -197,6 +202,16 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
     }
 
     //不清除pipe_r_ptr，下个周期再处理一回
+}
+
+void l1_data_cache::pipe3_cycle(){
+    if(m_hit_pipe2_reg_ptr != nullptr){
+        if(!m_coreRsp_Q.is_full()){
+            m_coreRsp_Q.m_Q.push_back(*m_hit_pipe2_reg_ptr);
+            m_hit_pipe2_reg_ptr == nullptr;
+        }
+    }
+    return;
 }
 
 /*所有可操作的对象包括m_coreRsp_Q, m_mshr.m_miss_req_ptr
@@ -253,6 +268,14 @@ void l1_data_cache::cycle(cycle_t time){
             //AMO
         }
     }
+}
+
+//需要tb先取出当前coreRsp里front的内容之后，再运行该函数
+void l1_data_cache::coreRsp_Q_cycle(cycle_t time){
+    if(m_coreRsp_ready){
+        m_coreRsp_Q.m_Q.pop_front();
+    }
+    return;
 }
 
 //需要tb先取出当前memReq_Q里front的内容之后，再运行该函数
