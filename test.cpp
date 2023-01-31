@@ -194,6 +194,7 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                     if(!m_coreRsp_Q.is_full()){
                         m_tag_array.read_hit_update_access_time(pipe1_block_idx,way_idx,time);
                         assert(m_hit_pipe2_reg_ptr==nullptr);
+                        //arrange coreRsp
                         //本模型不建模访问data SRAM行为，在此处对该SRAM发起访问，
                         dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r_ptr->m_reg_idxw,
                             true,pipe1_r_ptr->m_wid,pipe1_r_ptr->m_mask);
@@ -201,29 +202,45 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                         pipe1_r_ptr = nullptr;
                     }
                 }else{//status == MISS
-                    //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
-                    enum vec_mshr_status mshr_status = m_mshr.probe_vec(pipe1_block_idx);
-                    if (mshr_status == PRIMARY_AVAIL){
-                        if (!m_memReq_Q.is_full()){
-                            //TODO push memReq_Q
+                    if(pipe1_opcode==Read){
+                        //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
+                        enum vec_mshr_status mshr_status = m_mshr.probe_vec(pipe1_block_idx);
+                        if (mshr_status == PRIMARY_AVAIL){
+                            if (!m_memReq_Q.is_full()){
+                                //vecMSHR记录新entry
+                                vec_subentry new_vec_sub = vec_subentry(
+                                    pipe1_r_ptr->m_reg_idxw, pipe1_r_ptr->m_wid, pipe1_r_ptr->m_mask);
+                                m_mshr.allocate_vec_main(pipe1_block_idx, new_vec_sub);
+                                //push memReq Q
+                                dcache_2_L2_memReq new_read_miss = dcache_2_L2_memReq(
+                                    Get, 0x0, pipe1_r_ptr->m_reg_idxw, pipe1_block_idx);
+                                m_memReq_Q.m_Q.push_back(new_read_miss);
+                                pipe1_r_ptr = nullptr;
+                            }
+                        }else if(mshr_status == SECONDARY_AVAIL){
+                            //vecMSHR在旧entry下记录新成员
                             vec_subentry new_vec_sub = vec_subentry(
                                 pipe1_r_ptr->m_reg_idxw, pipe1_r_ptr->m_wid, pipe1_r_ptr->m_mask);
-                            m_mshr.allocate_vec_main(pipe1_block_idx, new_vec_sub);
-                            // **** TODO ****
+                            m_mshr.allocate_vec_sub(pipe1_block_idx, new_vec_sub);
+                            pipe1_r_ptr = nullptr;
+                        }//PRIMARY_FULL和SECONDARY_FULL直接跳过
+                    }else{//Write (write no allocation when miss)
+                        if (!m_memReq_Q.is_full() && !m_coreRsp_Q.is_full()){
+                            //arrange coreRsp
+                            dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r_ptr->m_reg_idxw,
+                                true,pipe1_r_ptr->m_wid,pipe1_r_ptr->m_mask);
+                            m_hit_pipe2_reg_ptr = &read_hit_coreRsp;
+                            //push memReq Q
+                            dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
+                                PutFullData, 0x0, pipe1_r_ptr->m_reg_idxw, pipe1_block_idx);
+                            m_memReq_Q.m_Q.push_back(new_write_miss);
                             pipe1_r_ptr = nullptr;
                         }
-                    }else if(mshr_status == SECONDARY_AVAIL){
-                        vec_subentry new_vec_sub = vec_subentry(
-                            pipe1_r_ptr->m_reg_idxw, pipe1_r_ptr->m_wid, pipe1_r_ptr->m_mask);
-                        m_mshr.allocate_vec_sub(pipe1_block_idx, new_vec_sub);
-                        // **** TODO ****
-                        pipe1_r_ptr = nullptr;
-                    }//PRIMARY_FULL和SECONDARY_FULL直接跳过
+                    }
                 }
             }
         }
     }
-
     //不清除pipe_r_ptr，下个周期再处理一回
 }
 
