@@ -53,8 +53,8 @@ public:
         m_coreReq_ptr=NULL;
         m_mshr = mshr(m_coreRsp_Q, m_memReq_Q);
     }
-    
-    void cycle(cycle_t time);
+
+    void pipe1_cycle();
 
     //cache主体周期，产生道路分歧
     void pipe2_cycle(cycle_t time);
@@ -62,9 +62,11 @@ public:
     //coreReq-coreRsp hit时，从data SRAM到coreRsp_Q
     void pipe3_cycle();
 
-    void coreRsp_Q_cycle(cycle_t time);
+    void coreRsp_Q_cycle();
 
-    void memReq_Q_cycle(cycle_t time);
+    void memReq_Q_cycle();
+
+    void cycle(cycle_t time);
 
     void cast_amo_LSU_type_2_TLUH_param(enum LSU_cache_coreReq_type_amo coreReq_type, 
     enum TL_UH_A_opcode& TL_opcode, u_int32_t& TL_param){
@@ -124,6 +126,24 @@ public:
     memReq_Q m_memReq_Q;
 };
 
+void l1_data_cache::pipe1_cycle(){
+    if(m_coreReq_ptr != nullptr){
+        if(m_coreReq_pipe1_reg_ptr == nullptr){
+            auto const coreReq_opcode = m_coreReq_ptr->m_opcode;
+            if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
+                if(m_coreReq_ptr->m_type == 1 || coreReq_opcode==Amo){//LR/SC
+                    //发起对speMSHR可用性的检查
+                }else{//regular R/W
+                    //发起tag probe
+                    //同步发起vecMSHR probe
+                }
+                m_coreReq_ptr = nullptr;
+            }
+        }
+    }
+    return;
+}
+
 void l1_data_cache::pipe2_cycle(cycle_t time){
     auto& pipe1_r_ptr = m_coreReq_pipe1_reg_ptr;
     if(pipe1_r_ptr != nullptr){
@@ -132,6 +152,7 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
         if (pipe1_opcode==Read || pipe1_opcode==Write || pipe1_opcode==Amo){
             if(pipe1_r_ptr->m_type == 1 ||//LR/SC
             pipe1_opcode==Amo){
+                //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
                 if (m_mshr.probe_spe() == AVAIL){
                     if (!m_memReq_Q.is_full()){
                         enum entry_target_type new_spe_type;
@@ -166,6 +187,7 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                 }
             }else{//regular R/W
                 u_int32_t way_idx=0;//hit情况下所在的way
+                //实际硬件行为中，tag的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
                 enum tag_access_status status = 
                     m_tag_array.probe(pipe1_block_idx,way_idx);
                 if (status == HIT){
@@ -179,6 +201,7 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                         pipe1_r_ptr = nullptr;
                     }
                 }else{//status == MISS
+                    //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
                     enum vec_mshr_status mshr_status = m_mshr.probe_vec(pipe1_block_idx);
                     if (mshr_status == PRIMARY_AVAIL){
                         if (!m_memReq_Q.is_full()){
@@ -214,64 +237,8 @@ void l1_data_cache::pipe3_cycle(){
     return;
 }
 
-/*所有可操作的对象包括m_coreRsp_Q, m_mshr.m_miss_req_ptr
-*/
-//TODO：把这个变成pipe1_cycle
-void l1_data_cache::cycle(cycle_t time){
-
-    bool mshr_2_coreRsp = false;
-    //m_mshr.cycle_in(mshr_2_coreRsp, time);
-
-    //deal with coreReq
-    if (m_coreReq_ptr == nullptr){
-        //jump out if-else
-    }else{
-        if (m_coreReq_ptr->m_opcode==Read || m_coreReq_ptr->m_opcode==Write){
-            assert(m_coreReq_ptr->m_type == 0 || m_coreReq_ptr->m_type == 1);
-            if(m_coreReq_ptr->m_type == 0){//TODO
-                //Regular READ or WRITE
-                u_int32_t way_idx=0;
-                enum tag_access_status status = m_tag_array.probe(m_coreReq_ptr->m_block_idx,way_idx);
-                if (status == HIT){
-                    if (m_coreRsp_Q.m_Q.size() < CORE_RSP_Q_DEPTH){
-                        m_tag_array.read_hit_update_access_time(m_coreReq_ptr->m_block_idx,way_idx,time);
-                        dcache_2_LSU_coreRsp read_hit_coreRsp(m_coreReq_ptr->m_reg_idxw,true,m_coreReq_ptr->m_wid,m_coreReq_ptr->m_mask);
-                        m_coreRsp_Q.m_Q.push_back(read_hit_coreRsp);
-                        m_coreReq_ptr = nullptr;
-                    }//else 不清空coreReq，下个周期重新判断一次hit/miss
-                }
-            }/*else{//m_coreReq_ptr->m_type == 1
-                if (m_mshr.m_miss_req_ptr == nullptr){
-                        vec_subentry lrsc_sub = vec_subentry(
-                            m_coreReq_ptr->m_reg_idxw,
-                            m_coreReq_ptr->m_wid,
-                            m_coreReq_ptr->m_mask);//TODO 以后换成SCALAR_MASK
-                        mshr_miss_req_t new_lrsc_mshr_req;
-                        if (m_coreReq_ptr->m_opcode == Read){
-                            new_lrsc_mshr_req = mshr_miss_req_t(
-                                m_coreReq_ptr->m_block_idx,
-                                LOAD_RESRV, lrsc_sub);
-                        }else if (m_coreReq_ptr->m_opcode == Write){
-                            new_lrsc_mshr_req = mshr_miss_req_t(
-                                m_coreReq_ptr->m_block_idx,
-                                STORE_COND, lrsc_sub);
-                        }
-                        m_mshr.m_miss_req_ptr = &new_lrsc_mshr_req;
-                        m_coreReq_ptr = nullptr;
-                }
-            }*/
-        }
-        else if(m_coreReq_ptr->m_opcode==Fence){
-            //Fence
-        }else {
-            assert(m_coreReq_ptr->m_opcode==Amo);
-            //AMO
-        }
-    }
-}
-
 //需要tb先取出当前coreRsp里front的内容之后，再运行该函数
-void l1_data_cache::coreRsp_Q_cycle(cycle_t time){
+void l1_data_cache::coreRsp_Q_cycle(){
     if(m_coreRsp_ready){
         m_coreRsp_Q.m_Q.pop_front();
     }
@@ -279,15 +246,25 @@ void l1_data_cache::coreRsp_Q_cycle(cycle_t time){
 }
 
 //需要tb先取出当前memReq_Q里front的内容之后，再运行该函数
-void l1_data_cache::memReq_Q_cycle(cycle_t time){
+void l1_data_cache::memReq_Q_cycle(){
     if(m_memReq_ready){
         m_memReq_Q.m_Q.pop_front();
     }
     return;
 }
 
+void l1_data_cache::cycle(cycle_t time){
+    coreRsp_Q_cycle();
+    memReq_Q_cycle();
+
+    pipe3_cycle();
+    pipe2_cycle(time);
+    pipe1_cycle();
+    return;
+}
+
 int main() {
-    std::cout << "modeling cache tag array now" << std::endl;
+    std::cout << "modeling cache now" << std::endl;
     l1_data_cache dcache;
     dcache.m_tag_array.DEBUG_random_initialize(100);
     //initialize a coreReq
