@@ -105,27 +105,6 @@ private:
     friend class mshr;
 };
 
-/*deprecated
-class mshr_miss_req_t : public cache_building_block{
-    //missRsp不需要记录AMO的类型，但是missQ需要
-public:
-    mshr_miss_req_t(){};
-
-    mshr_miss_req_t(u_int32_t block_addr, 
-        enum entry_target_type type, vec_subentry sub,
-        enum LSU_cache_coreReq_type_amo amo_type=notamo) : 
-        m_block_addr(block_addr), m_type(type), 
-        m_sub(sub),m_amo_type(amo_type){
-    }
-private:
-    u_int32_t m_block_addr;
-    enum entry_target_type m_type;
-    vec_subentry m_sub;
-    enum LSU_cache_coreReq_type_amo m_amo_type;
-
-    friend class mshr;
-};*/
-
 class mshr_miss_rsp_t : public cache_building_block{
 public:
     mshr_miss_rsp_t(u_int32_t req_id) : m_req_id(req_id){}
@@ -230,54 +209,6 @@ public:
         m_special_entry.insert({req_id, new_special});
         //TODO 添加有关TL_UH_A_PARAM_AMO的内容
     }
-
-    //函数返回值指示本周期是否向memReq发送内容
-    /*deprecated
-    移动相关功能到memReq_Q
-    bool cycle_out(){
-        //TODO:vec_entry和special_entry有先后顺序的问题
-        //TODO:考虑MSHR对memReqQ写入资格审查的问题
-        if(m_memReq_Q.m_Q.size() < MEM_REQ_Q_DEPTH){
-            for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
-                if (!iter->second.m_have_issued_2_memReq){
-                    dcache_2_L2_memReq new_memReq = dcache_2_L2_memReq(
-                        Get, 0,//a_op = Get, a_param = 0 for regular read
-                        iter->second.m_req_id, iter->first);
-                    m_memReq_Q.m_Q.push_back(new_memReq);
-                    iter->second.m_have_issued_2_memReq = true;
-                    return true;
-                }
-            }
-            for (auto iter = m_special_entry.begin(); iter != m_special_entry.end(); ++iter) {
-                if (!iter->second.m_have_issued_2_memReq){
-                    dcache_2_L2_memReq new_memReq;
-                    if (iter->second.m_type == LOAD_RESRV){
-                        new_memReq = dcache_2_L2_memReq(
-                        Get, 1,//a_op = Get, a_param = 1 for LR
-                        iter->first, iter->second.m_block_idx);
-                    } else if (iter->second.m_type == STORE_COND){
-                        new_memReq = dcache_2_L2_memReq(
-                        PutPartialData, 1,//for SC
-                        iter->first, iter->second.m_block_idx);
-                    } else{
-                        assert(iter->second.m_type == AMO);
-                        enum TL_UH_A_opcode amo_op;
-                        u_int32_t amo_param;
-                        cast_amo_LSU_type_2_TLUH_param(iter->second.m_amo_type,amo_op,amo_param);
-                        new_memReq = dcache_2_L2_memReq(
-                        amo_op, amo_param,
-                        iter->first, iter->second.m_block_idx);
-                    }
-                    m_memReq_Q.m_Q.push_back(new_memReq);
-                    iter->second.m_have_issued_2_memReq = true;
-                    return true;
-                }
-            }
-        }else{
-            return false;
-        }
-    }
-    */
 
     bool is_primary_miss(block_addr_t block_idx){
         //需要转换MSHR存储类型时（reg/SRAM）可以从这里着手考虑
