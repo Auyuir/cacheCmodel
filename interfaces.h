@@ -48,6 +48,11 @@ enum TL_UH_A_opcode {
     //Intent=5
 };
 
+enum TL_UH_D_opcode {
+    AccessAck=0,
+    AccessAckData=1,
+};
+
 struct dcache_2_L2_memReq : cache_building_block {
     public:
     dcache_2_L2_memReq(){}

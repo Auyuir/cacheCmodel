@@ -2,6 +2,7 @@
 #define MISS_STATUS_HOLDING_REG_H
 
 #include <map>
+#include <deque>
 
 #include "utils.h"
 #include "parameter.h"
@@ -35,9 +36,6 @@ public:
     :m_req_id(req_id), m_wid(wid), m_mask(mask){}//,
     //m_block_offset(block_offset), m_word_offset(word_offset){}
 private:
-    //bool m_sub_valid;
-
-    //enum entry_target_type m_sub_type; 
     u_int32_t m_req_id;
     u_int32_t m_wid;
 
@@ -78,7 +76,7 @@ private:
 
     //便于missRsp时索引，硬件上可能冗余
     u_int32_t m_req_id;
-    std::vector<vec_subentry> m_sub_en;
+    std::deque<vec_subentry> m_sub_en;
 
     bool m_have_issued_2_memReq;
     friend class mshr;
@@ -121,18 +119,19 @@ class mshr : public cache_building_block{
 public:
     mshr(){}
 
-    mshr(coreRsp_Q& coreRsp_Q_obj, memReq_Q& memReq_Q_obj)
-        :m_coreRsp_Q(coreRsp_Q_obj), m_memReq_Q(memReq_Q_obj){
+    mshr(dcache_2_LSU_coreRsp*& coreRsp_pipe_reg_obj, memReq_Q& memReq_Q_obj, tag_array& tag_obj)
+        :m_coreRsp_pipe2_reg_ptr(coreRsp_pipe_reg_obj), m_memReq_Q(memReq_Q_obj), m_tag_array(tag_obj){
         m_miss_rsp_ptr = nullptr;
     }
 
     //from special entry
     void special_arrange_core_rsp(u_int32_t req_id){
+        assert(m_coreRsp_pipe2_reg_ptr == nullptr);
         auto& the_entry = m_special_entry[req_id];
         std::array<bool,NLANE> mask_of_scalar = {true };
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
             req_id,true,the_entry.m_wid,mask_of_scalar);
-        m_coreRsp_Q.m_Q.push_back(new_rsp);
+        m_coreRsp_pipe2_reg_ptr = &new_rsp;
         //AMO,LR,SC都不引起data access写入。
         //AMO和LR向coreRsp.data写回数据
         //SC成功向coreRsp.data写0，失败写1
@@ -141,17 +140,16 @@ public:
         return;
     }
 
-    //from vec entry, 1 subentry/cycle
+    //每次调用处理一个subentry。当前main entry清空时，返回true。
     bool vec_arrange_core_rsp(block_addr_t block_idx){
-        assert(m_coreRsp_Q.m_Q.size() < CORE_RSP_Q_DEPTH);
+        assert(m_coreRsp_pipe2_reg_ptr == nullptr);
         auto& current_main = m_vec_entry[block_idx].m_sub_en;
         assert(!current_main.empty());
-        auto& current_sub = current_main.back();
+        auto& current_sub = current_main.front();
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
             current_sub.m_req_id,true,current_sub.m_wid,current_sub.m_mask);
-        //引发一次data access写入
-        m_coreRsp_Q.m_Q.push_back(new_rsp);
-        current_main.pop_back();
+        m_coreRsp_pipe2_reg_ptr = &new_rsp;
+        current_main.pop_front();
 
         if (current_main.empty()){
             m_vec_entry.erase(block_idx);
@@ -207,7 +205,6 @@ public:
         special_target_info new_special;
         new_special = special_target_info(type, wid);
         m_special_entry.insert({req_id, new_special});
-        //TODO 添加有关TL_UH_A_PARAM_AMO的内容
     }
 
     bool is_primary_miss(block_addr_t block_idx){
@@ -219,15 +216,55 @@ public:
         return false;
     }
 
+    //返回值代表下个周期是否可以清除mshr寄存器，让新missRsp进入
+    bool missRsp_process(enum entry_target_type type, 
+        u_int32_t req_id, block_addr_t block_idx, cycle_t time){
+        if (type == REGULAR_READ_MISS){
+            if(!tag_req_current_missRsp_has_sent){
+                m_tag_array.allocate(block_idx, time);
+                //本建模不体现，硬件在这里需要启动data SRAM的更新
+            }
+            if(m_vec_entry.size() > 0){
+                if(m_coreRsp_pipe2_reg_ptr == nullptr){
+                    bool main_finish = vec_arrange_core_rsp(block_idx);
+                    if(main_finish){
+                        tag_req_current_missRsp_has_sent=false;
+                        return true;
+                    }
+                }
+            }else{
+                //本建模中vec_entry不会为0，因为没有建模data SRAM的多周期写回行为
+                //所以这条路径不会被触发
+                tag_req_current_missRsp_has_sent=false;
+                return true;
+            }
+        }else{//AMO/LR/SC
+            if(m_coreRsp_pipe2_reg_ptr == nullptr){
+                special_arrange_core_rsp(req_id);
+                return true;
+            }
+        }
+        return false;
+    }
+
     //mshr_miss_req_t* m_miss_req_ptr;
     mshr_miss_rsp_t* m_miss_rsp_ptr;
     
     private:
     memReq_Q m_memReq_Q;
-    coreRsp_Q m_coreRsp_Q;//指向真正唯一的coreRspQ
+    //coreRsp_Q m_coreRsp_Q;
+    dcache_2_LSU_coreRsp* m_coreRsp_pipe2_reg_ptr;
+    tag_array m_tag_array;//指向真正唯一的tag_array
 
-    std::map<block_addr_t,vec_entry_target_info> m_vec_entry;//TODO
+    std::map<block_addr_t,vec_entry_target_info> m_vec_entry;
     std::map<uint32_t,special_target_info> m_special_entry;
+
+    bool tag_req_current_missRsp_has_sent;
+
+    public:
+    //用于missRsp_cycle的流水线寄存器更迭建模，在硬件中对应MSHR missRsp接口的ready信号
+    //该变量由l1_data_cache的memRsp_cycle检查和置1，由mshr的missRsp_cycle置0。
+    bool mshr_pipe_reg_ready;
 };
 
 #endif

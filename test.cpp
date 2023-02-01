@@ -51,16 +51,16 @@ class l1_data_cache : public cache_building_block{
 public:
     l1_data_cache(){
         m_coreReq_ptr=NULL;
-        m_mshr = mshr(m_coreRsp_Q, m_memReq_Q);
+        m_mshr = mshr(m_coreRsp_pipe2_reg_ptr, m_memReq_Q, m_tag_array);
     }
 
-    void pipe1_cycle();
+    void coreReq_pipe1_cycle();
 
     //cache主体周期，产生道路分歧
-    void pipe2_cycle(cycle_t time);
+    void coreReq_pipe2_cycle(cycle_t time);
 
     //coreReq-coreRsp hit时，从data SRAM到coreRsp_Q
-    void pipe3_cycle();
+    void coreReq_pipe3_cycle();
 
     void coreRsp_Q_cycle();
 
@@ -116,7 +116,7 @@ public:
     LSU_2_dcache_coreReq* m_coreReq_ptr;
     LSU_2_dcache_coreReq* m_coreReq_pipe1_reg_ptr;//pipe1和2之间的流水线寄存器
     //TODO:[初版建模完成后]m_coreReq_pipe1_reg_ptr不用和coreReq相同的类型，而是定制化
-    dcache_2_LSU_coreRsp* m_hit_pipe2_reg_ptr;//coreReq-coreRsp hit 路径上，pipe2和3之间的流水线寄存器
+    dcache_2_LSU_coreRsp* m_coreRsp_pipe2_reg_ptr;//pipe2和3之间的流水线寄存器。read hit 路径/write miss路径/missRsp路径
     bool m_coreRsp_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输coreRsp
     bool m_memReq_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输memReq
 
@@ -126,7 +126,7 @@ public:
     memReq_Q m_memReq_Q;
 };
 
-void l1_data_cache::pipe1_cycle(){
+void l1_data_cache::coreReq_pipe1_cycle(){
     if(m_coreReq_ptr != nullptr){
         if(m_coreReq_pipe1_reg_ptr == nullptr){
             auto const coreReq_opcode = m_coreReq_ptr->m_opcode;
@@ -144,7 +144,7 @@ void l1_data_cache::pipe1_cycle(){
     return;
 }
 
-void l1_data_cache::pipe2_cycle(cycle_t time){
+void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
     auto& pipe1_r_ptr = m_coreReq_pipe1_reg_ptr;
     if(pipe1_r_ptr != nullptr){
         auto const pipe1_opcode = pipe1_r_ptr->m_opcode;
@@ -193,12 +193,12 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                 if (status == HIT){
                     if(!m_coreRsp_Q.is_full()){
                         m_tag_array.read_hit_update_access_time(pipe1_block_idx,way_idx,time);
-                        assert(m_hit_pipe2_reg_ptr==nullptr);
+                        assert(m_coreRsp_pipe2_reg_ptr==nullptr);
                         //arrange coreRsp
                         //本模型不建模访问data SRAM行为，在此处对该SRAM发起访问，
                         dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r_ptr->m_reg_idxw,
                             true,pipe1_r_ptr->m_wid,pipe1_r_ptr->m_mask);
-                        m_hit_pipe2_reg_ptr = &read_hit_coreRsp;//TODO:有内存管理问题吗
+                        m_coreRsp_pipe2_reg_ptr = &read_hit_coreRsp;//TODO:有内存管理问题吗
                         pipe1_r_ptr = nullptr;
                     }
                 }else{//status == MISS
@@ -229,7 +229,7 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
                             //arrange coreRsp
                             dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r_ptr->m_reg_idxw,
                                 true,pipe1_r_ptr->m_wid,pipe1_r_ptr->m_mask);
-                            m_hit_pipe2_reg_ptr = &read_hit_coreRsp;
+                            m_coreRsp_pipe2_reg_ptr = &read_hit_coreRsp;
                             //push memReq Q
                             dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
                                 PutFullData, 0x0, pipe1_r_ptr->m_reg_idxw, pipe1_block_idx);
@@ -244,11 +244,11 @@ void l1_data_cache::pipe2_cycle(cycle_t time){
     //不清除pipe_r_ptr，下个周期再处理一回
 }
 
-void l1_data_cache::pipe3_cycle(){
-    if(m_hit_pipe2_reg_ptr != nullptr){
+void l1_data_cache::coreReq_pipe3_cycle(){
+    if(m_coreRsp_pipe2_reg_ptr != nullptr){
         if(!m_coreRsp_Q.is_full()){
-            m_coreRsp_Q.m_Q.push_back(*m_hit_pipe2_reg_ptr);
-            m_hit_pipe2_reg_ptr == nullptr;
+            m_coreRsp_Q.m_Q.push_back(*m_coreRsp_pipe2_reg_ptr);
+            m_coreRsp_pipe2_reg_ptr == nullptr;
         }
     }
     return;
@@ -274,9 +274,9 @@ void l1_data_cache::cycle(cycle_t time){
     coreRsp_Q_cycle();
     memReq_Q_cycle();
 
-    pipe3_cycle();
-    pipe2_cycle(time);
-    pipe1_cycle();
+    coreReq_pipe3_cycle();
+    coreReq_pipe2_cycle(time);
+    coreReq_pipe1_cycle();
     return;
 }
 
