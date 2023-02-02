@@ -62,6 +62,10 @@ public:
     //coreReq-coreRsp hit时，从data SRAM到coreRsp_Q
     void coreReq_pipe3_cycle();
 
+    void memRsp_pipe1_cycle();
+
+    void memRsp_pipe2_cycle(cycle_t time);
+
     void coreRsp_Q_cycle();
 
     void memReq_Q_cycle();
@@ -117,6 +121,10 @@ public:
     LSU_2_dcache_coreReq* m_coreReq_pipe1_reg_ptr;//pipe1和2之间的流水线寄存器
     //TODO:[初版建模完成后]m_coreReq_pipe1_reg_ptr不用和coreReq相同的类型，而是定制化
     dcache_2_LSU_coreRsp* m_coreRsp_pipe2_reg_ptr;//pipe2和3之间的流水线寄存器。read hit 路径/write miss路径/missRsp路径
+    //该寄存器由l1_data_cache的memRsp_pipe1_cycle检查和置1，由memRsp_pipe2_cycle置0。
+    //如果用SRAM实现MSHR，硬件中没有这个寄存器，用SRAM的保持功能实现相应功能。
+    //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
+    mshr_miss_rsp* m_memRsp_pipe1_reg_ptr;
     bool m_coreRsp_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输coreRsp
     bool m_memReq_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输memReq
 
@@ -124,6 +132,7 @@ public:
     mshr m_mshr;
     coreRsp_Q m_coreRsp_Q;
     memReq_Q m_memReq_Q;
+    memRsp_Q m_memRsp_Q;
 };
 
 void l1_data_cache::coreReq_pipe1_cycle(){
@@ -249,6 +258,30 @@ void l1_data_cache::coreReq_pipe3_cycle(){
         if(!m_coreRsp_Q.is_full()){
             m_coreRsp_Q.m_Q.push_back(*m_coreRsp_pipe2_reg_ptr);
             m_coreRsp_pipe2_reg_ptr == nullptr;
+        }
+    }
+    return;
+}
+
+void l1_data_cache::memRsp_pipe1_cycle(){
+    if(m_memRsp_Q.m_Q.size() != 0){
+        if(m_memRsp_pipe1_reg_ptr == nullptr){
+            auto const req_id = m_memRsp_Q.m_Q.front().m_req_id;
+            block_addr_t block_idx;
+            auto missRsp_type = m_mshr.detect_missRsp_type(block_idx, req_id);
+            mshr_miss_rsp new_miss_rsp = mshr_miss_rsp(missRsp_type,req_id, block_idx);
+            m_memRsp_pipe1_reg_ptr = &new_miss_rsp;
+
+            m_memRsp_Q.m_Q.pop_front();
+        }
+    }
+    return;
+}
+
+void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
+    if(m_memRsp_pipe1_reg_ptr != nullptr){
+        if(m_mshr.missRsp_process(*m_memRsp_pipe1_reg_ptr, time)){
+            m_memRsp_pipe1_reg_ptr = nullptr;
         }
     }
     return;

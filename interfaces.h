@@ -89,6 +89,20 @@ public:
     std::deque<dcache_2_L2_memReq> m_Q;
 };
 
+struct L2_2_dcache_memRsp : cache_building_block {
+    u_int32_t m_req_id;
+};
+
+class memRsp_Q : cache_building_block{
+public:
+    bool is_full(){
+        assert(m_Q.size() <= MEM_RSP_Q_DEPTH);
+        return m_Q.size() == MEM_RSP_Q_DEPTH;
+    }
+
+    std::deque<L2_2_dcache_memRsp> m_Q;
+};
+
 struct dcache_2_LSU_coreRsp : cache_building_block {
 public:
     dcache_2_LSU_coreRsp(u_int32_t reg_idxw, bool data, 
@@ -152,9 +166,4 @@ public:
     bool m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
 };
-
-struct L2_2_dcache_memRsp : cache_building_block {
-    u_int32_t m_req_id;
-};
-
 #endif

@@ -6,6 +6,7 @@
 #include "utils.h"
 
 typedef unsigned int cycle_t;
+typedef u_int32_t block_addr_t;
 
 class cache_building_block{
 public:
@@ -44,6 +45,7 @@ public:
 
     constexpr static u_int32_t CORE_RSP_Q_DEPTH = 2;
     constexpr static u_int32_t MEM_REQ_Q_DEPTH = 10;
+    constexpr static u_int32_t MEM_RSP_Q_DEPTH = 4;
 };
 
 #endif
