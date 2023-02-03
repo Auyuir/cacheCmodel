@@ -25,15 +25,18 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
         the_one.update_access_time(time);
     }
 
-    void tag_array::allocate(u_int64_t block_idx,cycle_t time){
+    bool tag_array::allocate(u_int64_t block_idx,cycle_t time){
         u_int32_t set_idx = get_set_idx(block_idx);
         u_int32_t way_idx = replace_choice(set_idx);
         auto& the_one = m_tag[set_idx][way_idx];
-        if (the_one.is_dirty())
-            issue_memReq_write(the_one);
+        if (the_one.is_dirty()){
+            if (!issue_memReq_write(the_one, set_idx))
+                return false;
+        }
         the_one.allocate(get_tag(block_idx));
         the_one.update_fill_time(time);
         the_one.update_access_time(time);
+        return true;
     }
 
     void tag_array::invalidate_chosen(u_int64_t block_idx){
@@ -57,17 +60,21 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
         }
     }
 
-    void tag_array::flush(){
+    bool tag_array::flush(){
         //write back all the dirty lines
         for (int i=0;i<NSET;++i){
             for (int j=0;j<NWAY;++j){
                 auto& the_one = m_tag[i][j];
                 if (the_one.is_valid() && the_one.is_dirty()){
-                    issue_memReq_write(the_one);
+                    bool success = issue_memReq_write(the_one, i);
+                    if (!success){
+                        return false;
+                    }
                     the_one.clear_dirty();
                 }
             }
         }
+        return true;
     }
     
     /*get the to-be-replaced way in a given set
@@ -91,9 +98,15 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
         return least_recently_idx;
     }
     
-    void tag_array::issue_memReq_write(meta_entry_t& line_to_issue){//TODO
-        // ****** TODO ******
-        //push the write back request to memReqQ(store q)
+    bool tag_array::issue_memReq_write(meta_entry_t& line_to_issue, u_int32_t set_idx){//TODO
+        if (!m_memReq_Q.is_full()){
+            u_int32_t block_addr = (line_to_issue.tag() << LOGB2(NSET) + set_idx) << 2;
+                dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
+            PutFullData, 0x0, 0xFFFFF, block_addr);//其中0xFFF在硬件上宜设置一个比单SM寄存器总数大的数值
+            m_memReq_Q.m_Q.push_back(new_dirty_back);
+            return true;
+        }else
+            return false;
     }
 
     //for test use only

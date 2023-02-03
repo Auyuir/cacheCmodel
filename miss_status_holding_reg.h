@@ -235,23 +235,24 @@ public:
         auto& block_idx = miss_rsp.m_block_idx;
         auto& req_id = miss_rsp.m_req_id;
         if (type == REGULAR_READ_MISS){
+            bool allocate_success = true;
             if(!tag_req_current_missRsp_has_sent){
-                m_tag_array.allocate(block_idx, time);
+                allocate_success = m_tag_array.allocate(block_idx, time);
                 //本建模不体现，硬件在这里需要启动data SRAM的更新
             }
             if(m_vec_entry.size() > 0){
                 if(m_coreRsp_pipe2_reg_ptr == nullptr){
                     bool main_finish = vec_arrange_core_rsp(block_idx);
                     if(main_finish){
-                        tag_req_current_missRsp_has_sent=false;
-                        return true;
+                        tag_req_current_missRsp_has_sent = !allocate_success;
+                        return allocate_success;
                     }
                 }
             }else{
                 //本建模中vec_entry不会为0，因为没有建模data SRAM的多周期写入行为
                 //所以这条路径不会被触发
-                tag_req_current_missRsp_has_sent=false;
-                return true;
+                tag_req_current_missRsp_has_sent = !allocate_success;
+                return allocate_success;
             }
         }else{//AMO/LR/SC
             if(m_coreRsp_pipe2_reg_ptr == nullptr){
