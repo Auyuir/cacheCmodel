@@ -6,9 +6,12 @@
 class l1_data_cache : public cache_building_block{
 public:
     l1_data_cache(){
-        m_coreReq_ptr=NULL;
+        m_coreReq_ptr = nullptr;
+        m_coreReq_pipe1_reg_ptr = nullptr;
+        m_coreRsp_pipe2_reg_ptr = nullptr;
+        m_memRsp_pipe1_reg_ptr = nullptr;
         m_tag_array = tag_array(m_memReq_Q);
-        m_mshr = mshr(m_coreRsp_pipe2_reg_ptr, m_memReq_Q, m_tag_array);
+        m_mshr = mshr(m_memReq_Q, m_tag_array);
     }
 
     void coreReq_pipe1_cycle();
@@ -278,7 +281,13 @@ struct DEBUG_L2_memRsp : public cache_building_block{
 };
 class DEBUG_L2_model : public cache_building_block{
 public:
+
+    bool return_Q_is_empty(){
+        return m_return_Q.empty();
+    }
+
     L2_2_dcache_memRsp DEBUG_serial_pop(){
+        assert(!m_return_Q.empty());
         auto value = m_return_Q.front();
         m_return_Q.pop_front();
         return value;
@@ -298,7 +307,7 @@ public:
     }
 
     void DEBUG_L2_memReq_process(dcache_2_L2_memReq req){
-        if (m_process_Q[m_minimal_process_latency-1] != nullptr){
+        if (m_process_Q[m_minimal_process_latency-1] == nullptr){
             enum TL_UH_D_opcode return_op;
             if(req.a_opcode == Get || req.a_opcode == ArithmeticData 
                 || req.a_opcode == LogicalData){
@@ -327,30 +336,55 @@ private:
     std::deque<L2_2_dcache_memRsp> m_return_Q;
 };
 
-void DEBUG_print_coreRsp_pop(){
+class test_env {
 
-}
+public:
+    void DEBUG_print_coreRsp_pop(cycle_t time){
+        if (dcache.m_coreRsp_Q.m_Q.size() != 0){
+            dcache.m_coreRsp_Q.m_Q.front().DEBUG_print();
+        }
+        dcache.m_coreRsp_ready = true;
+    }
 
-void cycle(cycle_t time){
+    void DEBUG_cycle(cycle_t time){
+        DEBUG_print_coreRsp_pop(time);
+        L2.cycle();
+        L2.DEBUG_L2_memReq_process(dcache.m_memReq_Q.m_Q.front());
+        dcache.cycle(time);
+        if(!L2.return_Q_is_empty()){
+            dcache.m_memRsp_Q.m_Q.push_back(L2.DEBUG_serial_pop());
+        }
+        if(dcache.m_coreReq_ptr == nullptr){
+            dcache.m_coreReq_ptr = &coreReq_stimuli.front();
+            coreReq_stimuli.pop_front();
+        }
+    }
 
-}
+    //TODO 丰富这个函数的个数，创造更多测试
+    void DEBUG_init_stimuli(){
+        std::array<u_int32_t,32> p_addr = {};
+        std::array<bool,32> p_mask = {true};
+        for(int i=0;i<10;++i){
+            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Write,0,random(0,31),i,0xff02,p_addr,p_mask);
+            coreReq_stimuli.push_back(coreReq);
+        }
+    }
+
+    l1_data_cache dcache;
+private:
+    std::deque<LSU_2_dcache_coreReq> coreReq_stimuli;
+    DEBUG_L2_model L2;
+};
 
 int main() {
     std::cout << "modeling cache now" << std::endl;
-    l1_data_cache dcache;
-    DEBUG_L2_model DEBUG_L2;
-    dcache.m_tag_array.DEBUG_random_initialize(100);
-    //initialize a coreReq
-    std::array<u_int32_t,32> p_addr = {};
-    std::array<bool,32> p_mask = {true};
-    LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,0,1,0xff02,p_addr,p_mask);
-    auto temp = &coreReq;
-    dcache.m_coreReq_ptr = temp;
-    dcache.cycle(101);
-    dcache.cycle(102);
-    std::cout << dcache.get_tag(0xffff) <<std::endl;
-
-    dcache.m_tag_array.DEBUG_visualize_array(0,10);
+    test_env tb;
+    tb.dcache.m_tag_array.DEBUG_random_initialize(100);
+    for (int i = 100 ; i < 120 ; ++i){
+        tb.DEBUG_cycle(i);
+    }
+    
+    tb.dcache.m_tag_array.DEBUG_visualize_array(0,10);
     //TODO: How to represent "time"?
     //TODO: How to serialize test event and construct the interface to push test event in
 }

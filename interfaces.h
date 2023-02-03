@@ -118,12 +118,31 @@ public:
         }
     }
 
+    void DEBUG_print(){
+        std::cout << "coreRsp " << DEBUG_print_number;
+        std::cout << " : reg_idx" << m_reg_idxw << " ";
+        std::cout << "wid " << m_wid;
+        if (m_wxd)
+            std::cout << ", is scalar ";
+        else
+            std::cout << ", is vector ";
+        
+        if(m_data)
+            std::cout << ", no data ";
+        else
+            std::cout << ", with data " << std::endl;
+        ++DEBUG_print_number;
+    }
+
     u_int32_t m_wid;
     u_int32_t m_reg_idxw;
     std::array<bool,NLANE> m_mask;
     bool m_wxd;//indicate whether its a scalar instruction
     bool m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
+
+    private:
+    int DEBUG_print_number=0;
 };
 
 class coreRsp_Q : cache_building_block {

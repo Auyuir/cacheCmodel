@@ -118,8 +118,8 @@ class mshr : public cache_building_block{
 public:
     mshr(){}
 
-    mshr(dcache_2_LSU_coreRsp*& coreRsp_pipe_reg_obj, memReq_Q& memReq_Q_obj, tag_array& tag_obj)
-        :m_coreRsp_pipe2_reg_ptr(coreRsp_pipe_reg_obj), m_memReq_Q(memReq_Q_obj), m_tag_array(tag_obj){}
+    mshr(memReq_Q& memReq_Q_obj, tag_array& tag_obj)
+        :m_memReq_Q(memReq_Q_obj), m_tag_array(tag_obj){}
 
     //from special entry
     void special_arrange_core_rsp(u_int32_t req_id){
