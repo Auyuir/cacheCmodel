@@ -77,7 +77,7 @@ public:
     LSU_2_dcache_coreReq* m_coreReq_ptr;
     LSU_2_dcache_coreReq* m_coreReq_pipe1_reg_ptr;//pipe1和2之间的流水线寄存器
     //TODO:[初版建模完成后]m_coreReq_pipe1_reg_ptr不用和coreReq相同的类型，而是定制化
-    dcache_2_LSU_coreRsp* m_coreRsp_pipe2_reg_ptr;//pipe2和3之间的流水线寄存器。read hit 路径/write miss路径/missRsp路径
+    dcache_2_LSU_coreRsp* m_coreRsp_pipe2_reg_ptr;//read hit 路径/write miss路径/missRsp路径
     //该寄存器由l1_data_cache的memRsp_pipe1_cycle检查和置1，由memRsp_pipe2_cycle置0。
     //如果用SRAM实现MSHR，硬件中没有这个寄存器，用SRAM的保持功能实现相应功能。
     //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
@@ -93,17 +93,19 @@ public:
 };
 
 void l1_data_cache::coreReq_pipe1_cycle(){
-    if(m_coreReq_ptr != nullptr){
-        if(m_coreReq_pipe1_reg_ptr == nullptr){
-            auto const coreReq_opcode = m_coreReq_ptr->m_opcode;
-            if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
-                if(m_coreReq_ptr->m_type == 1 || coreReq_opcode==Amo){//LR/SC
-                    //发起对speMSHR可用性的检查
-                }else{//regular R/W
-                    //发起tag probe
-                    //同步发起vecMSHR probe
+    if(m_memRsp_Q.m_Q.size() == 0){
+        if(m_coreReq_ptr != nullptr){
+            if(m_coreReq_pipe1_reg_ptr == nullptr){
+                auto const coreReq_opcode = m_coreReq_ptr->m_opcode;
+                if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
+                    if(m_coreReq_ptr->m_type == 1 || coreReq_opcode==Amo){//LR/SC
+                        //发起对speMSHR可用性的检查
+                    }else{//regular R/W
+                        //发起tag probe
+                        //同步发起vecMSHR probe
+                    }
+                    m_coreReq_ptr = nullptr;
                 }
-                m_coreReq_ptr = nullptr;
             }
         }
     }
@@ -259,13 +261,84 @@ void l1_data_cache::cycle(cycle_t time){
     memReq_Q_cycle();
 
     coreReq_pipe3_cycle();
+
+    memRsp_pipe2_cycle(time);//memRsp pipe2和coreReq pipe2之间没有相关
     coreReq_pipe2_cycle(time);
-    coreReq_pipe1_cycle();
+
+    coreReq_pipe1_cycle();//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之间运行
+    memRsp_pipe1_cycle();//否则memRsp pipe1的运行会pop memRsp_Q
+}
+
+struct DEBUG_L2_memRsp : public cache_building_block{
+    DEBUG_L2_memRsp(L2_2_dcache_memRsp inf, enum TL_UH_D_opcode opcode)
+        :m_inf(inf),m_opcode(opcode){}
+
+    L2_2_dcache_memRsp m_inf;
+    enum TL_UH_D_opcode m_opcode;
+};
+class DEBUG_L2_model : public cache_building_block{
+public:
+    L2_2_dcache_memRsp DEBUG_serial_pop(){
+        auto value = m_return_Q.front();
+        m_return_Q.pop_front();
+        return value;
+    }
+
+    //非随机，一直提供次次尾部的元素
+    L2_2_dcache_memRsp DEBUG_random_pop(){
+        std::deque<L2_2_dcache_memRsp>::iterator value_iter;
+        if (m_return_Q.size()<=2){
+            value_iter = m_return_Q.begin();
+        }else{
+            value_iter = m_return_Q.begin() + 2;
+        }
+        auto value = *value_iter;
+        m_return_Q.erase(value_iter);
+        return value;
+    }
+
+    void DEBUG_L2_memReq_process(dcache_2_L2_memReq req){
+        if (m_process_Q[m_minimal_process_latency-1] != nullptr){
+            enum TL_UH_D_opcode return_op;
+            if(req.a_opcode == Get || req.a_opcode == ArithmeticData 
+                || req.a_opcode == LogicalData){
+                return_op = AccessAckData;
+            }else{
+                return_op = AccessAck;
+            }
+            L2_2_dcache_memRsp new_memRsp = L2_2_dcache_memRsp(req.a_source);
+            DEBUG_L2_memRsp new_L2_return = DEBUG_L2_memRsp(new_memRsp,return_op);
+            m_process_Q[m_minimal_process_latency-1] = &new_L2_return;
+        }
+    }
+
+    void cycle(){
+        m_return_Q.push_back(m_process_Q[0]->m_inf);
+        m_process_Q[0] = nullptr;
+        for (unsigned stage = 0; stage < m_minimal_process_latency - 1; ++stage){
+            m_process_Q[stage] = m_process_Q[stage + 1];
+            m_process_Q[stage + 1] = nullptr;
+        }
+    }
+private:
+    //从L2 memReq到L2 memRsp的最小间隔周期
+    constexpr static int m_minimal_process_latency = 3;
+    std::array<DEBUG_L2_memRsp*,m_minimal_process_latency> m_process_Q;
+    std::deque<L2_2_dcache_memRsp> m_return_Q;
+};
+
+void DEBUG_print_coreRsp_pop(){
+
+}
+
+void cycle(cycle_t time){
+
 }
 
 int main() {
     std::cout << "modeling cache now" << std::endl;
     l1_data_cache dcache;
+    DEBUG_L2_model DEBUG_L2;
     dcache.m_tag_array.DEBUG_random_initialize(100);
     //initialize a coreReq
     std::array<u_int32_t,32> p_addr = {};

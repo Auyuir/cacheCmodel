@@ -90,6 +90,7 @@ public:
 };
 
 struct L2_2_dcache_memRsp : cache_building_block {
+    L2_2_dcache_memRsp(u_int32_t req_id):m_req_id(req_id){}
     u_int32_t m_req_id;
 };
 
