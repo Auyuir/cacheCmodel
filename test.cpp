@@ -7,6 +7,7 @@ class l1_data_cache : public cache_building_block{
 public:
     l1_data_cache(){
         m_coreReq_ptr=NULL;
+        m_tag_array = tag_array(m_memReq_Q);
         m_mshr = mshr(m_coreRsp_pipe2_reg_ptr, m_memReq_Q, m_tag_array);
     }
 
@@ -106,7 +107,6 @@ void l1_data_cache::coreReq_pipe1_cycle(){
             }
         }
     }
-    return;
 }
 
 void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
@@ -216,7 +216,6 @@ void l1_data_cache::coreReq_pipe3_cycle(){
             m_coreRsp_pipe2_reg_ptr == nullptr;
         }
     }
-    return;
 }
 
 void l1_data_cache::memRsp_pipe1_cycle(){
@@ -231,7 +230,6 @@ void l1_data_cache::memRsp_pipe1_cycle(){
             m_memRsp_Q.m_Q.pop_front();
         }
     }
-    return;
 }
 
 void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
@@ -240,7 +238,6 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
             m_memRsp_pipe1_reg_ptr = nullptr;
         }
     }
-    return;
 }
 
 //需要tb先取出当前coreRsp里front的内容之后，再运行该函数
@@ -248,7 +245,6 @@ void l1_data_cache::coreRsp_Q_cycle(){
     if(m_coreRsp_ready){
         m_coreRsp_Q.m_Q.pop_front();
     }
-    return;
 }
 
 //需要tb先取出当前memReq_Q里front的内容之后，再运行该函数
@@ -256,7 +252,6 @@ void l1_data_cache::memReq_Q_cycle(){
     if(m_memReq_ready){
         m_memReq_Q.m_Q.pop_front();
     }
-    return;
 }
 
 void l1_data_cache::cycle(cycle_t time){
@@ -266,7 +261,6 @@ void l1_data_cache::cycle(cycle_t time){
     coreReq_pipe3_cycle();
     coreReq_pipe2_cycle(time);
     coreReq_pipe1_cycle();
-    return;
 }
 
 int main() {
