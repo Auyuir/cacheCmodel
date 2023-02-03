@@ -3,50 +3,6 @@
 #include "miss_status_holding_reg.h"
 #include "interfaces.h"
 
-/*
-class data_array : cache_building_block {//TODO: embody DATA_SRAM_LATENCY
-public:
-    data_array(coreRsp_Q* coreRsp_Q_ptr){
-        m_coreRsp_Q_ptr = coreRsp_Q_ptr;
-    }
-
-    //this enum is not hardware-related
-    enum data_array_access_type{
-        READ_HIT,
-        WRITE_HIT,
-        MISS_RSP
-    };
-
-    struct data_array_req{
-        //bool m_is_write;
-        u_int32_t m_cache_req_id;
-        std::array<bool,NLANE> m_mask;
-        enum data_array_access_type m_type;
-    };
-
-    void cycle(){
-        if(m_req != NULL){
-            if(m_req->m_type==READ_HIT){
-                //read();
-            }
-        }
-    }
-
-    void read(u_int32_t cache_req_id,std::array<bool,NLANE> mask){//Cat(set_idx,way_idx)
-        dcache_2_LSU_coreRsp cRsp = dcache_2_LSU_coreRsp(cache_req_id,mask,true);
-        m_coreRsp_Q_ptr->m_Q.push_back(cRsp);
-    }
-
-    void write_by_hit(u_int32_t cache_req_id,std::array<bool,NLANE> mask){
-        dcache_2_LSU_coreRsp cRsp = dcache_2_LSU_coreRsp(cache_req_id,mask,false);
-        m_coreRsp_Q_ptr->m_Q.push_back(cRsp);
-    }
-
-    private:
-    data_array_req* m_req;
-    coreRsp_Q* m_coreRsp_Q_ptr;
-
-};*/
 class l1_data_cache : public cache_building_block{
 public:
     l1_data_cache(){
