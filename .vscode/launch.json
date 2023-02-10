@@ -8,6 +8,7 @@
             "name": "(gdb) 启动",
             "type": "cppdbg",
             "request": "launch",
+            //【NOTICE】欲使用vscode开发环境，需本地化修改此路径
             "program": "/home/au/GPU_workspace/cacheCmodel/test",
             "args": [],
             "stopAtEntry": false,
