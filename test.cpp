@@ -70,17 +70,25 @@ private:
 class test_env {
 
 public:
+    test_env(){
+        DEBUG_init_stimuli();
+    }
+
     void DEBUG_print_coreRsp_pop(cycle_t time){
         if (dcache.m_coreRsp_Q.m_Q.size() != 0){
             dcache.m_coreRsp_Q.DEBUG_print();
+            dcache.m_coreRsp_Q.m_Q.pop_front();
         }
-        dcache.m_coreRsp_ready = true;
+        //dcache.m_coreRsp_ready = true;
     }
 
     void DEBUG_cycle(cycle_t time){
         DEBUG_print_coreRsp_pop(time);
         L2.cycle();
-        L2.DEBUG_L2_memReq_process(dcache.m_memReq_Q.m_Q.front());
+        if(!dcache.m_memReq_Q.is_empty()){
+            L2.DEBUG_L2_memReq_process(dcache.m_memReq_Q.m_Q.front());
+            dcache.m_memReq_Q.m_Q.pop_front();
+        }
         dcache.cycle(time);
         if(!L2.return_Q_is_empty()){
             dcache.m_memRsp_Q.m_Q.push_back(L2.DEBUG_serial_pop());
@@ -97,7 +105,7 @@ public:
         std::array<u_int32_t,32> p_addr = {};
         std::array<bool,32> p_mask = {true};
         for(int i=0;i<10;++i){
-            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Write,0,random(0,31),i,0xff02,p_addr,p_mask);
+            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,random(0,31),i,0xff02,p_addr,p_mask);
             coreReq_stimuli.push_back(coreReq);
         }
     }

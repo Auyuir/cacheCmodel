@@ -85,8 +85,8 @@ public:
     //如果用SRAM实现MSHR，硬件中没有这个寄存器，用SRAM的保持功能实现相应功能。
     //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
     mshr_miss_rsp* m_memRsp_pipe1_reg_ptr;
-    bool m_coreRsp_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输coreRsp
-    bool m_memReq_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输memReq
+    //bool m_coreRsp_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输coreRsp
+    //bool m_memReq_ready;//每个周期可由tb改变的信号，代表当前周期是否可以传输memReq
 
     tag_array m_tag_array;
     mshr m_mshr;
@@ -245,10 +245,12 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
     }
 }
 
+/*
 //需要tb先取出当前coreRsp里front的内容之后，再运行该函数
 void l1_data_cache::coreRsp_Q_cycle(){
     if(!m_coreRsp_Q.is_empty() && m_coreRsp_ready){
         m_coreRsp_Q.m_Q.pop_front();
+        m_coreRsp_ready = false;
     }
 }
 
@@ -257,11 +259,11 @@ void l1_data_cache::memReq_Q_cycle(){
     if(!m_memReq_Q.is_empty() && m_memReq_ready){
         m_memReq_Q.m_Q.pop_front();
     }
-}
+}*/
 
 void l1_data_cache::cycle(cycle_t time){
-    coreRsp_Q_cycle();
-    memReq_Q_cycle();
+    //coreRsp_Q_cycle();
+    //memReq_Q_cycle();
 
     coreReq_pipe3_cycle();
 
