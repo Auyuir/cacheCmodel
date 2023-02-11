@@ -247,14 +247,14 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
 
 //需要tb先取出当前coreRsp里front的内容之后，再运行该函数
 void l1_data_cache::coreRsp_Q_cycle(){
-    if(m_coreRsp_ready){
+    if(!m_coreRsp_Q.is_empty() && m_coreRsp_ready){
         m_coreRsp_Q.m_Q.pop_front();
     }
 }
 
 //需要tb先取出当前memReq_Q里front的内容之后，再运行该函数
 void l1_data_cache::memReq_Q_cycle(){
-    if(m_memReq_ready){
+    if(!m_memReq_Q.is_empty() && m_memReq_ready){
         m_memReq_Q.m_Q.pop_front();
     }
 }

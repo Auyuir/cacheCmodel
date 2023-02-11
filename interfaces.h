@@ -86,6 +86,10 @@ public:
         return m_Q.size() == MEM_REQ_Q_DEPTH;
     }
 
+    bool is_empty(){
+        return m_Q.size() == 0;
+    }
+
     std::deque<dcache_2_L2_memReq> m_Q;
 };
 
@@ -131,6 +135,10 @@ public:
     bool is_full(){
         assert(m_Q.size() <= CORE_RSP_Q_DEPTH);
         return m_Q.size() == CORE_RSP_Q_DEPTH;
+    }
+
+    bool is_empty(){
+        return m_Q.size() == 0;
     }
 
     void DEBUG_print(){
