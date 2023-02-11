@@ -323,7 +323,9 @@ public:
 
     void cycle(){
         if (m_process_Q[0] != nullptr){
-            m_return_Q.push_back(m_process_Q[0]->m_inf);
+            if (m_process_Q[0]->m_opcode == AccessAckData){
+                m_return_Q.push_back(m_process_Q[0]->m_inf);
+            }
         }
         for (unsigned stage = 0; stage < m_minimal_process_latency - 1; ++stage){
             m_process_Q[stage] = m_process_Q[stage + 1];
@@ -355,7 +357,8 @@ public:
         if(!L2.return_Q_is_empty()){
             dcache.m_memRsp_Q.m_Q.push_back(L2.DEBUG_serial_pop());
         }
-        if(dcache.m_coreReq_ptr == nullptr){
+        if(dcache.m_coreReq_ptr == nullptr && !coreReq_stimuli.empty()){
+            auto size = coreReq_stimuli.size();
             dcache.m_coreReq_ptr = &coreReq_stimuli.front();
             coreReq_stimuli.pop_front();
         }
