@@ -322,8 +322,9 @@ public:
     }
 
     void cycle(){
-        m_return_Q.push_back(m_process_Q[0]->m_inf);
-        m_process_Q[0] = nullptr;
+        if (m_process_Q[0] != nullptr){
+            m_return_Q.push_back(m_process_Q[0]->m_inf);
+        }
         for (unsigned stage = 0; stage < m_minimal_process_latency - 1; ++stage){
             m_process_Q[stage] = m_process_Q[stage + 1];
             m_process_Q[stage + 1] = nullptr;
@@ -332,7 +333,7 @@ public:
 private:
     //从L2 memReq到L2 memRsp的最小间隔周期
     constexpr static int m_minimal_process_latency = 3;
-    std::array<DEBUG_L2_memRsp*,m_minimal_process_latency> m_process_Q;
+    std::array<DEBUG_L2_memRsp*,m_minimal_process_latency> m_process_Q {};
     std::deque<L2_2_dcache_memRsp> m_return_Q;
 };
 
