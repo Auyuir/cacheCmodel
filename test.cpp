@@ -1,6 +1,7 @@
 #include "l1_data_cache.h"
 
-struct DEBUG_L2_memRsp : public cache_building_block{
+struct DEBUG_L2_memRsp :public pipe_reg_base, public cache_building_block{
+    DEBUG_L2_memRsp(){}
     DEBUG_L2_memRsp(L2_2_dcache_memRsp inf, enum TL_UH_D_opcode opcode)
         :m_inf(inf),m_opcode(opcode){}
 
@@ -35,7 +36,7 @@ public:
     }
 
     void DEBUG_L2_memReq_process(dcache_2_L2_memReq req){
-        if (m_process_Q[m_minimal_process_latency-1] == nullptr){
+        if (!m_process_Q[m_minimal_process_latency-1].is_valid()){
             enum TL_UH_D_opcode return_op;
             if(req.a_opcode == Get || req.a_opcode == ArithmeticData 
                 || req.a_opcode == LogicalData){
@@ -45,25 +46,25 @@ public:
             }
             L2_2_dcache_memRsp new_memRsp = L2_2_dcache_memRsp(req.a_source);
             DEBUG_L2_memRsp new_L2_return = DEBUG_L2_memRsp(new_memRsp,return_op);
-            m_process_Q[m_minimal_process_latency-1] = &new_L2_return;
+            m_process_Q[m_minimal_process_latency-1] = new_L2_return;
         }
     }
 
     void cycle(){
-        if (m_process_Q[0] != nullptr){
-            if (m_process_Q[0]->m_opcode == AccessAckData){
-                m_return_Q.push_back(m_process_Q[0]->m_inf);
+        if (m_process_Q[0].is_valid()){
+            if (m_process_Q[0].m_opcode == AccessAckData){
+                m_return_Q.push_back(m_process_Q[0].m_inf);
             }
         }
         for (unsigned stage = 0; stage < m_minimal_process_latency - 1; ++stage){
             m_process_Q[stage] = m_process_Q[stage + 1];
-            m_process_Q[stage + 1] = nullptr;
+            m_process_Q[stage + 1].invalidate();
         }
     }
 private:
     //从L2 memReq到L2 memRsp的最小间隔周期
     constexpr static int m_minimal_process_latency = 3;
-    std::array<DEBUG_L2_memRsp*,m_minimal_process_latency> m_process_Q {};
+    std::array<DEBUG_L2_memRsp,m_minimal_process_latency> m_process_Q {};
     std::deque<L2_2_dcache_memRsp> m_return_Q;
 };
 
@@ -93,9 +94,9 @@ public:
         if(!L2.return_Q_is_empty()){
             dcache.m_memRsp_Q.m_Q.push_back(L2.DEBUG_serial_pop());
         }
-        if(dcache.m_coreReq_ptr == nullptr && !coreReq_stimuli.empty()){
+        if(!dcache.m_coreReq.is_valid() && !coreReq_stimuli.empty()){
             auto size = coreReq_stimuli.size();
-            dcache.m_coreReq_ptr = &coreReq_stimuli.front();
+            dcache.m_coreReq.update_with(coreReq_stimuli.front());
             coreReq_stimuli.pop_front();
         }
     }

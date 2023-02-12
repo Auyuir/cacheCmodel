@@ -103,10 +103,11 @@ private:
 //本类的成员变量和missRsp_process的入参相同
 class mshr_miss_rsp : public cache_building_block{
 public:
+    mshr_miss_rsp(){}
+
     mshr_miss_rsp(enum entry_target_type type, u_int32_t req_id, 
         block_addr_t block_idx):m_type(type), m_req_id(req_id), m_block_idx(block_idx){}
 
-private:
     enum entry_target_type m_type;
     u_int32_t m_req_id;
     block_addr_t m_block_idx;
@@ -123,12 +124,12 @@ public:
 
     //from special entry
     void special_arrange_core_rsp(u_int32_t req_id){
-        assert(m_coreRsp_pipe2_reg_ptr == nullptr);
+        assert(!m_coreRsp_pipe2_reg.is_valid());
         auto& the_entry = m_special_entry[req_id];
         std::array<bool,NLANE> mask_of_scalar = {true };
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
             req_id,true,the_entry.m_wid,mask_of_scalar);
-        m_coreRsp_pipe2_reg_ptr = &new_rsp;
+        m_coreRsp_pipe2_reg.update_with(new_rsp);
         //AMO,LR,SC都不引起data access写入。
         //AMO和LR向coreRsp.data写回数据
         //SC成功向coreRsp.data写0，失败写1
@@ -139,13 +140,13 @@ public:
 
     //每次调用处理一个subentry。当前main entry清空时，返回true。
     bool vec_arrange_core_rsp(block_addr_t block_idx){
-        assert(m_coreRsp_pipe2_reg_ptr == nullptr);
+        assert(!m_coreRsp_pipe2_reg.is_valid());
         auto& current_main = m_vec_entry[block_idx].m_sub_en;
         assert(!current_main.empty());
         auto& current_sub = current_main.front();
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
             current_sub.m_req_id,true,current_sub.m_wid,current_sub.m_mask);
-        m_coreRsp_pipe2_reg_ptr = &new_rsp;
+        m_coreRsp_pipe2_reg.update_with(new_rsp);
         current_main.pop_front();
 
         if (current_main.empty()){
@@ -241,7 +242,7 @@ public:
                 //本建模不体现，硬件在这里需要启动data SRAM的更新
             }
             if(m_vec_entry.size() > 0){
-                if(m_coreRsp_pipe2_reg_ptr == nullptr){
+                if(!m_coreRsp_pipe2_reg.is_valid()){
                     bool main_finish = vec_arrange_core_rsp(block_idx);
                     if(main_finish){
                         tag_req_current_missRsp_has_sent = !allocate_success;
@@ -255,7 +256,7 @@ public:
                 return allocate_success;
             }
         }else{//AMO/LR/SC
-            if(m_coreRsp_pipe2_reg_ptr == nullptr){
+            if(!m_coreRsp_pipe2_reg.is_valid()){
                 special_arrange_core_rsp(req_id);
                 return true;
             }
@@ -266,7 +267,7 @@ public:
     private:
     memReq_Q m_memReq_Q;
     //coreRsp_Q m_coreRsp_Q;
-    dcache_2_LSU_coreRsp* m_coreRsp_pipe2_reg_ptr;
+    coreRsp_pipe_reg m_coreRsp_pipe2_reg;
     tag_array m_tag_array;//指向真正唯一的tag_array
 
     std::map<block_addr_t,vec_entry_target_info> m_vec_entry;
