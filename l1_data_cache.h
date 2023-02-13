@@ -28,7 +28,7 @@ public:
         m_mshr = mshr(m_memReq_Q, m_tag_array);
     }
 
-    void coreReq_pipe1_cycle();
+    void coreReq_pipe1_cycle(cycle_t time);
 
     //cache主体周期，产生道路分歧
     void coreReq_pipe2_cycle(cycle_t time);
@@ -36,7 +36,7 @@ public:
     //coreReq-coreRsp hit时，从data SRAM到coreRsp_Q
     void coreReq_pipe3_cycle();
 
-    void memRsp_pipe1_cycle();
+    void memRsp_pipe1_cycle(cycle_t time);
 
     void memRsp_pipe2_cycle(cycle_t time);
 
@@ -107,11 +107,16 @@ public:
     memRsp_Q m_memRsp_Q;
 };
 
-void l1_data_cache::coreReq_pipe1_cycle(){
+void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
     if(m_memRsp_Q.m_Q.size() == 0){
         if(m_coreReq.is_valid()){
             if(!m_coreReq_pipe1_reg.is_valid()){
                 auto const coreReq_opcode = m_coreReq.m_opcode;
+
+                //debug info
+                std::cout << "coreReq in at " << time;
+                std::cout << ", opcode=" << coreReq_opcode <<std::endl;
+
                 if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
                     if(m_coreReq.m_type == 1 || coreReq_opcode==Amo){//LR/SC
                         //发起对speMSHR可用性的检查
@@ -236,7 +241,7 @@ void l1_data_cache::coreReq_pipe3_cycle(){
     }
 }
 
-void l1_data_cache::memRsp_pipe1_cycle(){
+void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
     if(m_memRsp_Q.m_Q.size() != 0){
         if(!m_memRsp_pipe1_reg.is_valid()){
             auto const req_id = m_memRsp_Q.m_Q.front().m_req_id;
@@ -244,6 +249,10 @@ void l1_data_cache::memRsp_pipe1_cycle(){
             auto missRsp_type = m_mshr.detect_missRsp_type(block_idx, req_id);
             mshr_miss_rsp new_miss_rsp = mshr_miss_rsp(missRsp_type,req_id, block_idx);
             m_memRsp_pipe1_reg.update_with(new_miss_rsp);
+
+            //debug info
+            std::cout << "memRsp in at " << time ;
+            std::cout << ", req_id=" << req_id <<std::endl;
 
             m_memRsp_Q.m_Q.pop_front();
         }
@@ -283,6 +292,6 @@ void l1_data_cache::cycle(cycle_t time){
     memRsp_pipe2_cycle(time);//memRsp pipe2和coreReq pipe2之间没有相关
     coreReq_pipe2_cycle(time);
 
-    coreReq_pipe1_cycle();//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之间运行
-    memRsp_pipe1_cycle();//否则memRsp pipe1的运行会pop memRsp_Q
+    coreReq_pipe1_cycle(time);//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之间运行
+    memRsp_pipe1_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
 }

@@ -35,7 +35,7 @@ public:
         return value;
     }
 
-    void DEBUG_L2_memReq_process(dcache_2_L2_memReq req){
+    void DEBUG_L2_memReq_process(dcache_2_L2_memReq req, cycle_t time){
         if (!m_process_Q[m_minimal_process_latency-1].is_valid()){
             enum TL_UH_D_opcode return_op;
             if(req.a_opcode == Get || req.a_opcode == ArithmeticData 
@@ -47,6 +47,10 @@ public:
             L2_2_dcache_memRsp new_memRsp = L2_2_dcache_memRsp(req.a_source);
             DEBUG_L2_memRsp new_L2_return = DEBUG_L2_memRsp(new_memRsp,return_op);
             m_process_Q[m_minimal_process_latency-1] = new_L2_return;
+
+            //debug info
+            std::cout << "memReq out at " << time;
+            std::cout << ", TLopcode=" << req.a_opcode <<std::endl;
         }
     }
 
@@ -87,7 +91,7 @@ public:
         DEBUG_print_coreRsp_pop(time);
         L2.cycle();
         if(!dcache.m_memReq_Q.is_empty()){
-            L2.DEBUG_L2_memReq_process(dcache.m_memReq_Q.m_Q.front());
+            L2.DEBUG_L2_memReq_process(dcache.m_memReq_Q.m_Q.front(), time);
             dcache.m_memReq_Q.m_Q.pop_front();
         }
         dcache.cycle(time);
