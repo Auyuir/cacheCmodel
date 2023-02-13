@@ -209,9 +209,9 @@ public:
         //需要转换MSHR存储类型时（reg/SRAM）可以从这里着手考虑
         for (auto iter = m_vec_entry.begin(); iter != m_vec_entry.end(); ++iter) {
             if (iter->first == block_idx)
-                return true;
+                return false;
         }
-        return false;
+        return true;
     }
 
     enum entry_target_type detect_missRsp_type(block_addr_t& block_idx, u_int32_t req_id){
