@@ -112,7 +112,8 @@ public:
         std::array<u_int32_t,32> p_addr = {};
         std::array<bool,32> p_mask = {true};
         for(int i=0;i<10;++i){
-            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,random(0,31),i,0xff02,p_addr,p_mask);
+            //cache大小目前是32*2=64个line，block_idx不要超过64=0x3F
+            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,random(0,31),i,0x1f,p_addr,p_mask);
             coreReq_stimuli.push_back(coreReq);
         }
     }

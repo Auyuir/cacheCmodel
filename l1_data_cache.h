@@ -122,7 +122,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
 
 void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
     auto& pipe1_r = m_coreReq_pipe1_reg;
-    if(pipe1_r.is_valid()){
+    if(pipe1_r.is_valid() && !m_memRsp_pipe1_reg.is_valid()){
         auto const pipe1_opcode = pipe1_r.m_opcode;
         auto const pipe1_block_idx = pipe1_r.m_block_idx;
         if (pipe1_opcode==Read || pipe1_opcode==Write || pipe1_opcode==Amo){
@@ -168,7 +168,8 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                     m_tag_array.probe(pipe1_block_idx,way_idx);
                 if (status == HIT){
                     if(!m_coreRsp_Q.is_full()){
-                        m_tag_array.read_hit_update_access_time(pipe1_block_idx,way_idx,time);
+                        auto set_idx = get_set_idx(pipe1_block_idx);
+                        m_tag_array.read_hit_update_access_time(set_idx,way_idx,time);
                         assert(!m_coreRsp_pipe2_reg.is_valid());
                         //arrange coreRsp
                         //本模型不建模访问data SRAM行为，在此处对该SRAM发起访问，
@@ -291,9 +292,9 @@ void l1_data_cache::cycle(cycle_t time){
 
     coreReq_pipe3_cycle();
 
-    memRsp_pipe2_cycle(time);//memRsp pipe2和coreReq pipe2之间没有相关
-    coreReq_pipe2_cycle(time);
+    coreReq_pipe2_cycle(time);//coreReq pipe2必须在memRsp之前，因为memRsp优先级高
+    memRsp_pipe2_cycle(time);
 
-    coreReq_pipe1_cycle(time);//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之间运行
+    coreReq_pipe1_cycle(time);//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之前运行
     memRsp_pipe1_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
 }
