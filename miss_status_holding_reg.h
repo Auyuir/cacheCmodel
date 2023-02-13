@@ -274,7 +274,7 @@ public:
     std::map<block_addr_t,vec_entry_target_info> m_vec_entry;
     std::map<uint32_t,special_target_info> m_special_entry;
 
-    bool tag_req_current_missRsp_has_sent;
+    bool tag_req_current_missRsp_has_sent = false;
 };
 
 #endif
