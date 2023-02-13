@@ -17,9 +17,7 @@ class mshr_missRsp_pipe_reg : public mshr_miss_rsp, public pipe_reg_base{
 
 class l1_data_cache : public cache_building_block{
 public:
-    l1_data_cache(){
-        m_tag_array = tag_array(m_memReq_Q);//TODO, debug
-    }
+    l1_data_cache(){}
 
     void coreReq_pipe1_cycle(cycle_t time);
 
@@ -258,7 +256,7 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
         if (type == REGULAR_READ_MISS){
             bool allocate_success = true;
             if(!tag_req_current_missRsp_has_sent){
-                allocate_success = m_tag_array.allocate(block_idx, time);
+                allocate_success = m_tag_array.allocate(m_memReq_Q, block_idx, time);
                 //本建模不体现，硬件在这里需要启动data SRAM的更新
             }
             if(!m_mshr.current_main_0_sub(block_idx)){

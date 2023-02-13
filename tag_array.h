@@ -93,8 +93,6 @@ class tag_array : cache_building_block {
 public:
     tag_array(){}
 
-    tag_array(memReq_Q& memReq_Q_obj):m_memReq_Q(memReq_Q_obj){}
-
     enum tag_access_status probe(u_int64_t block_idx, u_int32_t& way_idx);
 
     void read_hit_update_access_time(u_int32_t way_idx, u_int32_t set_idx,cycle_t time);
@@ -102,14 +100,14 @@ public:
     void write_hit_mark_dirty(u_int32_t way_idx, u_int32_t set_idx,cycle_t time);
 
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
-    bool allocate(u_int64_t block_idx,cycle_t time);
+    bool allocate(memReq_Q& mReq_Q, u_int64_t block_idx,cycle_t time);
 
     void invalidate_chosen(u_int64_t block_idx);
 
     void invalidate_all();
 
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
-    bool flush();
+    bool flush(memReq_Q& mReq_Q);
     
     /*get the to-be-replaced way in a given set
     return: u_int32_t way_idx
@@ -118,7 +116,7 @@ public:
     u_int32_t replace_choice(u_int32_t set_idx);
     
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
-    bool issue_memReq_write(meta_entry_t& line_to_issue, u_int32_t set_idx);
+    bool issue_memReq_write(memReq_Q& memReq_Q, meta_entry_t& line_to_issue, u_int32_t set_idx);
 
     //for test use only
     void DEBUG_random_initialize(cycle_t time);
@@ -132,7 +130,6 @@ public:
 
 private:
     std::array<std::array<meta_entry_t, NWAY>,NSET> m_tag;
-    memReq_Q m_memReq_Q;//指向真正唯一的memReq_Q
 };
 
 #endif
