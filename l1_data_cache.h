@@ -24,8 +24,7 @@ public:
     l1_data_cache(){
         /*
         m_memRsp_pipe1_reg_ptr = nullptr;*/
-        m_tag_array = tag_array(m_memReq_Q);
-        m_mshr = mshr(m_memReq_Q, m_tag_array);
+        m_tag_array = tag_array(m_memReq_Q);//TODO, debug
     }
 
     void coreReq_pipe1_cycle(cycle_t time);
@@ -99,6 +98,7 @@ public:
     //如果用SRAM实现MSHR，硬件中没有这个寄存器，用SRAM的保持功能实现相应功能。
     //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
     mshr_missRsp_pipe_reg m_memRsp_pipe1_reg;
+    bool tag_req_current_missRsp_has_sent = false;//m_memRsp_pipe1_reg的一部分，单独控制信号
 
     tag_array m_tag_array;
     mshr m_mshr;
@@ -261,7 +261,39 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
 
 void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
     if(m_memRsp_pipe1_reg.is_valid()){
-        if(m_mshr.missRsp_process(m_memRsp_pipe1_reg, time)){
+        auto& type = m_memRsp_pipe1_reg.m_type;
+        auto& block_idx = m_memRsp_pipe1_reg.m_block_idx;
+        auto& req_id = m_memRsp_pipe1_reg.m_req_id;
+        bool current_missRsp_clear = false;
+        if (type == REGULAR_READ_MISS){
+            bool allocate_success = true;
+            if(!tag_req_current_missRsp_has_sent){
+                allocate_success = m_tag_array.allocate(block_idx, time);
+                //本建模不体现，硬件在这里需要启动data SRAM的更新
+            }
+            if(!m_mshr.current_main_0_sub(block_idx)){
+                if(!m_coreRsp_pipe2_reg.is_valid()){
+                    bool main_finish = m_mshr.vec_arrange_core_rsp(
+                        m_coreRsp_pipe2_reg, block_idx);
+                    if(main_finish){
+                        tag_req_current_missRsp_has_sent = !allocate_success;
+                        current_missRsp_clear = allocate_success;
+                    }
+                }
+            }else{
+                //本建模中vec_entry不会为0，因为没有建模data SRAM的多周期写入行为
+                //所以这条路径不会被触发
+                tag_req_current_missRsp_has_sent = !allocate_success;
+                current_missRsp_clear = allocate_success;
+            }
+        }else{//AMO/LR/SC
+            if(!m_coreRsp_pipe2_reg.is_valid()){
+                m_mshr.special_arrange_core_rsp(m_coreRsp_pipe2_reg, req_id);
+                current_missRsp_clear = true;
+            }
+        }
+
+        if(current_missRsp_clear){
             m_memRsp_pipe1_reg.invalidate();
         }
     }

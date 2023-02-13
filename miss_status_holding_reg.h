@@ -120,17 +120,14 @@ class mshr : public cache_building_block{
 public:
     mshr(){}
 
-    mshr(memReq_Q& memReq_Q_obj, tag_array& tag_obj)
-        :m_memReq_Q(memReq_Q_obj), m_tag_array(tag_obj){}
-
     //from special entry
-    void special_arrange_core_rsp(u_int32_t req_id){
-        assert(!m_coreRsp_pipe2_reg.is_valid());
+    void special_arrange_core_rsp(coreRsp_pipe_reg& pipe_reg, u_int32_t req_id){
+        assert(!pipe_reg.is_valid());
         auto& the_entry = m_special_entry[req_id];
         std::array<bool,NLANE> mask_of_scalar = {true };
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
             req_id,true,the_entry.m_wid,mask_of_scalar);
-        m_coreRsp_pipe2_reg.update_with(new_rsp);
+        pipe_reg.update_with(new_rsp);
         //AMO,LR,SC都不引起data access写入。
         //AMO和LR向coreRsp.data写回数据
         //SC成功向coreRsp.data写0，失败写1
@@ -140,14 +137,14 @@ public:
     }
 
     //每次调用处理一个subentry。当前main entry清空时，返回true。
-    bool vec_arrange_core_rsp(block_addr_t block_idx){
-        assert(!m_coreRsp_pipe2_reg.is_valid());
+    bool vec_arrange_core_rsp(coreRsp_pipe_reg& pipe_reg, block_addr_t block_idx){
+        assert(!pipe_reg.is_valid());
         auto& current_main = m_vec_entry[block_idx].m_sub_en;
         assert(!current_main.empty());
         auto& current_sub = current_main.front();
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
             current_sub.m_req_id,true,current_sub.m_wid,current_sub.m_mask);
-        m_coreRsp_pipe2_reg.update_with(new_rsp);
+        pipe_reg.update_with(new_rsp);
         current_main.pop_front();
 
         if (current_main.empty()){
@@ -232,7 +229,7 @@ public:
     }
 
     //返回值代表下个周期是否可以清除mshr寄存器，让新missRsp进入
-    bool missRsp_process(const mshr_miss_rsp& miss_rsp, cycle_t time){
+ /*    bool missRsp_process(const mshr_miss_rsp& miss_rsp, cycle_t time){
         auto& type = miss_rsp.m_type;
         auto& block_idx = miss_rsp.m_block_idx;
         auto& req_id = miss_rsp.m_req_id;
@@ -263,18 +260,22 @@ public:
             }
         }
         return false;
+    } */
+
+    bool current_main_0_sub(block_addr_t block_idx){
+        return m_vec_entry[block_idx].m_sub_en.size() == 0;
     }
     
     private:
-    memReq_Q m_memReq_Q;
+    //memReq_Q m_memReq_Q;
     //coreRsp_Q m_coreRsp_Q;
-    coreRsp_pipe_reg m_coreRsp_pipe2_reg;
-    tag_array m_tag_array;//指向真正唯一的tag_array
+    //coreRsp_pipe_reg m_coreRsp_pipe2_reg;
+    //tag_array m_tag_array;//指向真正唯一的tag_array
 
     std::map<block_addr_t,vec_entry_target_info> m_vec_entry;
     std::map<uint32_t,special_target_info> m_special_entry;
 
-    bool tag_req_current_missRsp_has_sent = false;
+    //bool tag_req_current_missRsp_has_sent = false;
 };
 
 #endif
