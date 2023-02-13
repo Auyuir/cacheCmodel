@@ -128,11 +128,12 @@ int main() {
     std::cout << "modeling cache now" << std::endl;
     test_env tb;
     tb.dcache.m_tag_array.DEBUG_random_initialize(100);
+    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
     for (int i = 100 ; i < 120 ; ++i){
         tb.DEBUG_cycle(i);
     }
     
-    tb.dcache.m_tag_array.DEBUG_visualize_array(0,10);
+    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
     //TODO: How to represent "time"?
     //TODO: How to serialize test event and construct the interface to push test event in
 }
