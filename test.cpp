@@ -1,8 +1,11 @@
 #include "l1_data_cache.h"
 
-struct DEBUG_L2_memRsp : public cache_building_block{
+struct DEBUG_L2_memRsp :public pipe_reg_base, public cache_building_block{
+    DEBUG_L2_memRsp(){}
     DEBUG_L2_memRsp(L2_2_dcache_memRsp inf, enum TL_UH_D_opcode opcode)
-        :m_inf(inf),m_opcode(opcode){}
+        :m_inf(inf),m_opcode(opcode){
+            set_valid();
+        }
 
     L2_2_dcache_memRsp m_inf;
     enum TL_UH_D_opcode m_opcode;
@@ -34,8 +37,8 @@ public:
         return value;
     }
 
-    void DEBUG_L2_memReq_process(dcache_2_L2_memReq req){
-        if (m_process_Q[m_minimal_process_latency-1] == nullptr){
+    void DEBUG_L2_memReq_process(dcache_2_L2_memReq req, cycle_t time){
+        if (!m_process_Q[m_minimal_process_latency-1].is_valid()){
             enum TL_UH_D_opcode return_op;
             if(req.a_opcode == Get || req.a_opcode == ArithmeticData 
                 || req.a_opcode == LogicalData){
@@ -45,25 +48,29 @@ public:
             }
             L2_2_dcache_memRsp new_memRsp = L2_2_dcache_memRsp(req.a_source);
             DEBUG_L2_memRsp new_L2_return = DEBUG_L2_memRsp(new_memRsp,return_op);
-            m_process_Q[m_minimal_process_latency-1] = &new_L2_return;
+            m_process_Q[m_minimal_process_latency-1] = new_L2_return;
+
+            //debug info
+            std::cout << "memReq out at " << time;
+            std::cout << ", TLopcode=" << req.a_opcode <<std::endl;
         }
     }
 
     void cycle(){
-        if (m_process_Q[0] != nullptr){
-            if (m_process_Q[0]->m_opcode == AccessAckData){
-                m_return_Q.push_back(m_process_Q[0]->m_inf);
+        if (m_process_Q[0].is_valid()){
+            if (m_process_Q[0].m_opcode == AccessAckData){
+                m_return_Q.push_back(m_process_Q[0].m_inf);
             }
         }
         for (unsigned stage = 0; stage < m_minimal_process_latency - 1; ++stage){
             m_process_Q[stage] = m_process_Q[stage + 1];
-            m_process_Q[stage + 1] = nullptr;
+            m_process_Q[stage + 1].invalidate();
         }
     }
 private:
     //从L2 memReq到L2 memRsp的最小间隔周期
     constexpr static int m_minimal_process_latency = 3;
-    std::array<DEBUG_L2_memRsp*,m_minimal_process_latency> m_process_Q {};
+    std::array<DEBUG_L2_memRsp,m_minimal_process_latency> m_process_Q {};
     std::deque<L2_2_dcache_memRsp> m_return_Q;
 };
 
@@ -86,16 +93,16 @@ public:
         DEBUG_print_coreRsp_pop(time);
         L2.cycle();
         if(!dcache.m_memReq_Q.is_empty()){
-            L2.DEBUG_L2_memReq_process(dcache.m_memReq_Q.m_Q.front());
+            L2.DEBUG_L2_memReq_process(dcache.m_memReq_Q.m_Q.front(), time);
             dcache.m_memReq_Q.m_Q.pop_front();
         }
         dcache.cycle(time);
         if(!L2.return_Q_is_empty()){
             dcache.m_memRsp_Q.m_Q.push_back(L2.DEBUG_serial_pop());
         }
-        if(dcache.m_coreReq_ptr == nullptr && !coreReq_stimuli.empty()){
+        if(!dcache.m_coreReq.is_valid() && !coreReq_stimuli.empty()){
             auto size = coreReq_stimuli.size();
-            dcache.m_coreReq_ptr = &coreReq_stimuli.front();
+            dcache.m_coreReq.update_with(coreReq_stimuli.front());
             coreReq_stimuli.pop_front();
         }
     }
@@ -105,7 +112,8 @@ public:
         std::array<u_int32_t,32> p_addr = {};
         std::array<bool,32> p_mask = {true};
         for(int i=0;i<10;++i){
-            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,random(0,31),i,0xff02,p_addr,p_mask);
+            //cache大小目前是32*2=64个line，block_idx不要超过64=0x3F
+            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,random(0,31),i,0x1f,p_addr,p_mask);
             coreReq_stimuli.push_back(coreReq);
         }
     }
@@ -120,11 +128,12 @@ int main() {
     std::cout << "modeling cache now" << std::endl;
     test_env tb;
     tb.dcache.m_tag_array.DEBUG_random_initialize(100);
+    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
     for (int i = 100 ; i < 120 ; ++i){
         tb.DEBUG_cycle(i);
     }
     
-    tb.dcache.m_tag_array.DEBUG_visualize_array(0,10);
+    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
     //TODO: How to represent "time"?
     //TODO: How to serialize test event and construct the interface to push test event in
 }

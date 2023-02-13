@@ -53,6 +53,28 @@ enum TL_UH_D_opcode {
     AccessAckData=1,
 };
 
+class pipe_reg_base {
+    public:
+    pipe_reg_base(){
+        m_valid = false;
+    }
+
+    bool is_valid(){
+        return m_valid;
+    }
+
+    void invalidate(){
+        m_valid = false;
+    }
+
+    void set_valid(){
+        m_valid = true;
+    }
+
+    private:
+    bool m_valid;
+};
+
 struct dcache_2_L2_memReq : cache_building_block {
     public:
     dcache_2_L2_memReq(){}
@@ -94,6 +116,7 @@ public:
 };
 
 struct L2_2_dcache_memRsp : cache_building_block {
+    L2_2_dcache_memRsp(){}
     L2_2_dcache_memRsp(u_int32_t req_id):m_req_id(req_id){}
     u_int32_t m_req_id;
 };
@@ -110,6 +133,8 @@ public:
 
 struct dcache_2_LSU_coreRsp : cache_building_block {
 public:
+    dcache_2_LSU_coreRsp(){}
+
     dcache_2_LSU_coreRsp(u_int32_t reg_idxw, bool data, 
         u_int32_t wid, std::array<bool,NLANE> mask):m_wid(wid),
         m_reg_idxw(reg_idxw),m_mask(mask),m_data(data){
@@ -152,7 +177,7 @@ public:
             std::cout << ", is vector ";
         
         if(tar.m_data)
-            std::cout << ", no data ";
+            std::cout << ", no data " << std::endl;
         else
             std::cout << ", with data " << std::endl;
         ++DEBUG_print_number;
@@ -166,16 +191,13 @@ private:
 
 struct LSU_2_dcache_coreReq : cache_building_block {
 public:
+    LSU_2_dcache_coreReq(){}
+
     LSU_2_dcache_coreReq(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
         u_int32_t wid, u_int32_t req_id, u_int64_t block_idx,vec_nlane_t perLane_addr, 
-        std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo){
-        m_opcode = opcode;
-        m_type = type;
-        m_wid = wid;//used for coreRsp
-        m_reg_idxw = req_id;//used for coreRsp
-        m_block_idx = block_idx;
-        m_mask = mask;
-        m_amo_type = amo_type;
+        std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo):
+        m_opcode(opcode), m_type(type), m_wid(wid), m_reg_idxw(req_id), m_block_idx(block_idx), 
+        m_mask(mask), m_amo_type(amo_type){
         if (opcode == Read | opcode == Fence)
             m_data = false;
         else
@@ -186,8 +208,8 @@ public:
     enum LSU_cache_coreReq_opcode m_opcode;
     u_int32_t m_type;
     enum LSU_cache_coreReq_type_amo m_amo_type;//在硬件中，这个变量和type合用一个信号
-    u_int32_t m_wid;
-    u_int32_t m_reg_idxw;
+    u_int32_t m_wid;//used for coreRsp
+    u_int32_t m_reg_idxw;//used for coreRsp
     u_int64_t m_block_idx;
     std::array<bool,NLANE> m_mask;
     vec_nlane_t m_block_offset;//block_offset
@@ -195,4 +217,50 @@ public:
     bool m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
 };
+
+class coreReq_pipe_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
+    public:
+    coreReq_pipe_reg(){}
+
+    void update_with(LSU_2_dcache_coreReq coreReq){
+        m_opcode=coreReq.m_opcode;
+        m_type=coreReq.m_type;
+        m_wid=coreReq.m_wid;
+        m_reg_idxw=coreReq.m_reg_idxw;
+        m_block_idx=coreReq.m_block_idx;
+        m_mask=coreReq.m_mask;
+        m_amo_type=coreReq.m_amo_type;
+        if (coreReq.m_opcode == Read | coreReq.m_opcode == Fence)
+            m_data = false;
+        else
+            m_data = true;
+        set_valid();
+    }
+
+    /*coreReq_pipe_reg(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
+        u_int32_t wid, u_int32_t req_id, u_int64_t block_idx,vec_nlane_t perLane_addr, 
+        std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo):
+        LSU_2_dcache_coreReq(opcode,type,wid,req_id,block_idx,perLane_addr,mask,amo_type){
+        set_valid();
+    }*/
+};
+
+class coreRsp_pipe_reg : public dcache_2_LSU_coreRsp, public pipe_reg_base{
+    public:
+    coreRsp_pipe_reg(){}
+
+    void update_with(dcache_2_LSU_coreRsp coreRsp){
+        m_wid = coreRsp.m_wid;
+        m_reg_idxw = coreRsp.m_reg_idxw;
+        m_mask = coreRsp.m_mask;
+        m_wxd = coreRsp.m_wxd;
+        m_data = coreRsp.m_data;
+        set_valid();
+    }
+    /* coreRsp_pipe_reg(u_int32_t reg_idxw, bool data, u_int32_t wid, 
+        std::array<bool,NLANE> mask):dcache_2_LSU_coreRsp(reg_idxw,data,wid,mask){
+        set_valid();
+    } */
+};
+
 #endif
