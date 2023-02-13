@@ -228,54 +228,14 @@ public:
         }
     }
 
-    //返回值代表下个周期是否可以清除mshr寄存器，让新missRsp进入
- /*    bool missRsp_process(const mshr_miss_rsp& miss_rsp, cycle_t time){
-        auto& type = miss_rsp.m_type;
-        auto& block_idx = miss_rsp.m_block_idx;
-        auto& req_id = miss_rsp.m_req_id;
-        if (type == REGULAR_READ_MISS){
-            bool allocate_success = true;
-            if(!tag_req_current_missRsp_has_sent){
-                allocate_success = m_tag_array.allocate(block_idx, time);
-                //本建模不体现，硬件在这里需要启动data SRAM的更新
-            }
-            if(m_vec_entry.size() > 0){
-                if(!m_coreRsp_pipe2_reg.is_valid()){
-                    bool main_finish = vec_arrange_core_rsp(block_idx);
-                    if(main_finish){
-                        tag_req_current_missRsp_has_sent = !allocate_success;
-                        return allocate_success;
-                    }
-                }
-            }else{
-                //本建模中vec_entry不会为0，因为没有建模data SRAM的多周期写入行为
-                //所以这条路径不会被触发
-                tag_req_current_missRsp_has_sent = !allocate_success;
-                return allocate_success;
-            }
-        }else{//AMO/LR/SC
-            if(!m_coreRsp_pipe2_reg.is_valid()){
-                special_arrange_core_rsp(req_id);
-                return true;
-            }
-        }
-        return false;
-    } */
-
     bool current_main_0_sub(block_addr_t block_idx){
         return m_vec_entry[block_idx].m_sub_en.size() == 0;
     }
     
     private:
-    //memReq_Q m_memReq_Q;
-    //coreRsp_Q m_coreRsp_Q;
-    //coreRsp_pipe_reg m_coreRsp_pipe2_reg;
-    //tag_array m_tag_array;//指向真正唯一的tag_array
 
     std::map<block_addr_t,vec_entry_target_info> m_vec_entry;
     std::map<uint32_t,special_target_info> m_special_entry;
-
-    //bool tag_req_current_missRsp_has_sent = false;
 };
 
 #endif

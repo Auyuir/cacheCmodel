@@ -13,17 +13,11 @@ class mshr_missRsp_pipe_reg : public mshr_miss_rsp, public pipe_reg_base{
         m_block_idx = miss_rsp.m_block_idx;
         set_valid();
     }
-    /* mshr_missRsp_pipe_reg(enum entry_target_type type, u_int32_t req_id, 
-        block_addr_t block_idx):mshr_miss_rsp(type,req_id,block_idx){
-        set_valid();
-    } */
 };
 
 class l1_data_cache : public cache_building_block{
 public:
     l1_data_cache(){
-        /*
-        m_memRsp_pipe1_reg_ptr = nullptr;*/
         m_tag_array = tag_array(m_memReq_Q);//TODO, debug
     }
 
@@ -38,9 +32,6 @@ public:
     void memRsp_pipe1_cycle(cycle_t time);
 
     void memRsp_pipe2_cycle(cycle_t time);
-
-    //void coreRsp_Q_cycle();
-    //void memReq_Q_cycle();
 
     void cycle(cycle_t time);
 
@@ -93,7 +84,6 @@ public:
     coreReq_pipe_reg m_coreReq_pipe1_reg;//pipe1和2之间的流水线寄存器
     //TODO:[初版建模完成后]m_coreReq_pipe1_reg_ptr不用和coreReq相同的类型，而是定制化
     coreRsp_pipe_reg m_coreRsp_pipe2_reg;//read hit 路径/write miss路径/missRsp路径
-    //dcache_2_LSU_coreRsp* m_coreRsp_pipe2_reg_ptr;
     //该寄存器由l1_data_cache的memRsp_pipe1_cycle检查和置1，由memRsp_pipe2_cycle置0。
     //如果用SRAM实现MSHR，硬件中没有这个寄存器，用SRAM的保持功能实现相应功能。
     //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
@@ -299,25 +289,7 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
     }
 }
 
-/*
-//需要tb先取出当前coreRsp里front的内容之后，再运行该函数
-void l1_data_cache::coreRsp_Q_cycle(){
-    if(!m_coreRsp_Q.is_empty() && m_coreRsp_ready){
-        m_coreRsp_Q.m_Q.pop_front();
-        m_coreRsp_ready = false;
-    }
-}
-
-//需要tb先取出当前memReq_Q里front的内容之后，再运行该函数
-void l1_data_cache::memReq_Q_cycle(){
-    if(!m_memReq_Q.is_empty() && m_memReq_ready){
-        m_memReq_Q.m_Q.pop_front();
-    }
-}*/
-
 void l1_data_cache::cycle(cycle_t time){
-    //coreRsp_Q_cycle();
-    //memReq_Q_cycle();
 
     coreReq_pipe3_cycle();
 
