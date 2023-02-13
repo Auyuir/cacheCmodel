@@ -3,7 +3,9 @@
 struct DEBUG_L2_memRsp :public pipe_reg_base, public cache_building_block{
     DEBUG_L2_memRsp(){}
     DEBUG_L2_memRsp(L2_2_dcache_memRsp inf, enum TL_UH_D_opcode opcode)
-        :m_inf(inf),m_opcode(opcode){}
+        :m_inf(inf),m_opcode(opcode){
+            set_valid();
+        }
 
     L2_2_dcache_memRsp m_inf;
     enum TL_UH_D_opcode m_opcode;
