@@ -57,7 +57,8 @@ public:
     }
 
     bool sub_is_full(){
-        return m_sub_en.size() < N_MSHR_SUBENTRY;
+        assert(m_sub_en.size() <= N_MSHR_SUBENTRY);
+        return m_sub_en.size() == N_MSHR_SUBENTRY;
     }
 
     void allocate_sub(const vec_subentry& sub){
