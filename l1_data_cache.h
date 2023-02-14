@@ -258,6 +258,7 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
             bool allocate_success = true;
             if(!tag_req_current_missRsp_has_sent){
                 allocate_success = m_tag_array.allocate(m_memReq_Q, block_idx, time);
+                tag_req_current_missRsp_has_sent = true;
                 //本建模不体现，硬件在这里需要启动data SRAM的更新
             }
             if(!m_mshr.current_main_0_sub(block_idx)){
