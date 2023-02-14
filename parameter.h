@@ -18,9 +18,9 @@ public:
     }
 
 public:
-  //                                       |   blockOffset  |
+  //                                       |  blockOffset  |
   //                                       |             wordOffset
-  // |32      tag       22|21   setIdx   11|10 9|8         2|1 0|
+  // |32      tag       12|11   setIdx    7|6 4|3         2|1 0|
     constexpr static u_int32_t WORDSIZE = 4;//in bytes
     constexpr static u_int32_t ADDR_LENGTH = 32;
 

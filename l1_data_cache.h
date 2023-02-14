@@ -102,7 +102,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                 auto const coreReq_opcode = m_coreReq.m_opcode;
 
                 //debug info
-                std::cout << "coreReq in at " << time;
+                std::cout << std::setw(5) << time << " | coreReq";
                 std::cout << ", opcode=" << coreReq_opcode <<std::endl;
 
                 if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
@@ -240,7 +240,7 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
             m_memRsp_pipe1_reg.update_with(new_miss_rsp);
 
             //debug info
-            std::cout << "memRsp in at " << time ;
+            std::cout<< std::setw(5) << time << " | memRsp";
             std::cout << ", req_id=" << req_id <<std::endl;
 
             m_memRsp_Q.m_Q.pop_front();

@@ -51,7 +51,7 @@ public:
             m_process_Q[m_minimal_process_latency-1] = new_L2_return;
 
             //debug info
-            std::cout << "memReq out at " << time;
+            std::cout << std::setw(5) << time << " | memReq";
             std::cout << ", TLopcode=" << req.a_opcode <<std::endl;
         }
     }
@@ -83,7 +83,7 @@ public:
 
     void DEBUG_print_coreRsp_pop(cycle_t time){
         if (dcache.m_coreRsp_Q.m_Q.size() != 0){
-            dcache.m_coreRsp_Q.DEBUG_print();
+            dcache.m_coreRsp_Q.DEBUG_print(time);
             dcache.m_coreRsp_Q.m_Q.pop_front();
         }
         //dcache.m_coreRsp_ready = true;
@@ -129,6 +129,8 @@ int main() {
     test_env tb;
     tb.dcache.m_tag_array.DEBUG_random_initialize(100);
     tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
+
+    std::cout << std::endl << " time | event" << std::endl;
     for (int i = 100 ; i < 120 ; ++i){
         tb.DEBUG_cycle(i);
     }

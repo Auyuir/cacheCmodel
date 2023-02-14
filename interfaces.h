@@ -166,9 +166,9 @@ public:
         return m_Q.size() == 0;
     }
 
-    void DEBUG_print(){
+    void DEBUG_print(cycle_t time){
         auto& tar = m_Q.front();
-        std::cout << "coreRsp " << DEBUG_print_number;
+        std::cout << std::setw(5) << time << " | coreRsp " << DEBUG_print_number;
         std::cout << " : reg_idx" << tar.m_reg_idxw << " ";
         std::cout << "wid " << tar.m_wid;
         if (tar.m_wxd)
