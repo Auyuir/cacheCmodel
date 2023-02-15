@@ -103,6 +103,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
 
                 //debug info
                 std::cout << std::setw(5) << time << " | coreReq";
+                std::cout << ", reg_idx" << m_coreReq.m_reg_idxw ;
                 std::cout << ", opcode=" << coreReq_opcode <<std::endl;
 
                 if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
@@ -173,9 +174,10 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                         assert(!m_coreRsp_pipe2_reg.is_valid());
                         //arrange coreRsp
                         //本模型不建模访问data SRAM行为，在此处对该SRAM发起访问，
-                        dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r.m_reg_idxw,
-                            true,pipe1_r.m_wid,pipe1_r.m_mask);
-                        m_coreRsp_pipe2_reg.update_with(read_hit_coreRsp);//TODO:有内存管理问题吗
+                        bool rsp_with_data = (pipe1_opcode==Read);
+                        dcache_2_LSU_coreRsp hit_coreRsp(pipe1_r.m_reg_idxw,
+                            rsp_with_data,pipe1_r.m_wid,pipe1_r.m_mask);
+                        m_coreRsp_pipe2_reg.update_with(hit_coreRsp);//TODO:有内存管理问题吗
                         pipe1_r.invalidate();
                     }
                 }else{//status == MISS
@@ -204,9 +206,9 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                     }else{//Write (write no allocation when miss)
                         if (!m_memReq_Q.is_full() && !m_coreRsp_Q.is_full()){
                             //arrange coreRsp
-                            dcache_2_LSU_coreRsp read_hit_coreRsp(pipe1_r.m_reg_idxw,
-                                true,pipe1_r.m_wid,pipe1_r.m_mask);
-                            m_coreRsp_pipe2_reg.update_with(read_hit_coreRsp);
+                            dcache_2_LSU_coreRsp write_miss_coreRsp(pipe1_r.m_reg_idxw,
+                                false,pipe1_r.m_wid,pipe1_r.m_mask);
+                            m_coreRsp_pipe2_reg.update_with(write_miss_coreRsp);
                             //push memReq Q
                             dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
                                 PutFullData, 0x0, pipe1_r.m_reg_idxw, pipe1_block_idx);

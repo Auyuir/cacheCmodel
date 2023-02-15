@@ -111,9 +111,11 @@ public:
     void DEBUG_init_stimuli(){
         std::array<u_int32_t,32> p_addr = {};
         std::array<bool,32> p_mask = {true};
-        for(int i=0;i<10;++i){
+        for(int i=0;i<5;++i){
             //cache大小目前是32*2=64个line，block_idx不要超过64=0x3F
-            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,random(0,31),i,0x1f,p_addr,p_mask);
+            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,random(0,31),2*i,0x1f,p_addr,p_mask);
+            coreReq_stimuli.push_back(coreReq);
+            coreReq=LSU_2_dcache_coreReq(Write,0,random(0,31),2*i+1,0x1f,p_addr,p_mask);
             coreReq_stimuli.push_back(coreReq);
         }
     }
@@ -136,6 +138,4 @@ int main() {
     }
     
     tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
-    //TODO: How to represent "time"?
-    //TODO: How to serialize test event and construct the interface to push test event in
 }
