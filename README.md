@@ -8,7 +8,7 @@ Link of ventus: https://github.com/THU-DSP-LAB/ventus-gpgpu
 ## Quick start
 this project is developed using WSL2 Ubuntu 20.04
 
-compile pls use `make cache` in command line, which is conduct by Makefile
+compile pls use `make` in command line, which is conduct by Makefile
 
 debug can use debugger in vscode, with **correct local config in .vscode/launch**, and gdb installed in wsl
 
