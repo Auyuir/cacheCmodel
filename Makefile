@@ -5,7 +5,7 @@ debug:
 	g++ -fdiagnostics-color=always -g ${SRCS} -o ${BIN}
 #--coverage option for converage stat, recommand for gcc -v > 9. remove if dont want the stat
 
-coverage:
+coverage: clean
 	g++ --coverage -fdiagnostics-color=always ${SRCS} -o ${BIN}
 
 clean:

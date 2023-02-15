@@ -176,7 +176,7 @@ public:
         else
             std::cout << ", is vector ";
         
-        if(tar.m_data)
+        if(!tar.m_data)
             std::cout << ", no data " << std::endl;
         else
             std::cout << ", with data " << std::endl;
