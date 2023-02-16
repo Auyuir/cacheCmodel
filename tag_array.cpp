@@ -98,7 +98,7 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
         return least_recently_idx;
     }
     
-    bool tag_array::issue_memReq_write(memReq_Q& mReq_Q, meta_entry_t& line_to_issue, u_int32_t set_idx){//TODO
+    bool tag_array::issue_memReq_write(memReq_Q& mReq_Q, meta_entry_t& line_to_issue, u_int32_t set_idx){
         if (!mReq_Q.is_full()){
             u_int32_t block_addr = (line_to_issue.tag() << LOGB2(NSET) + set_idx) << 2;
                 dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
