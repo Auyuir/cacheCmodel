@@ -11,6 +11,9 @@ coverage: clean
 
 clean: clean_BIN clean_gcda clean_gcno
 
+#if use Ubuntu, dash will goes wrong with following code
+#use 'ls -al /bin/sh' to check
+#use 'sudo dpkg-reconfigure dash' switching to bash
 clean_BIN:
 	if [ -a ${BIN} ];then\
 		rm ${BIN};\
