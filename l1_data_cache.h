@@ -99,7 +99,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
         if(m_coreReq.is_valid()){
             if(!m_coreReq_pipe1_reg.is_valid()){
                 auto const coreReq_opcode = m_coreReq.m_opcode;
-
+                assert(coreReq_opcode<=3);
                 //debug info
                 std::cout << std::setw(5) << time << " | coreReq";
                 std::cout << ", reg_idx" << m_coreReq.m_reg_idxw ;
@@ -112,9 +112,9 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                         //发起tag probe
                         //同步发起vecMSHR probe
                     }
-                    m_coreReq_pipe1_reg = m_coreReq;
-                    m_coreReq.invalidate();
-                }
+                }//else: flush or invalidate
+                m_coreReq_pipe1_reg = m_coreReq;
+                m_coreReq.invalidate();
             }
         }
     }

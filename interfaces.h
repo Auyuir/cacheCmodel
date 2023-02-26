@@ -8,7 +8,7 @@ enum LSU_cache_coreReq_opcode {
     Read,
     Write,
     Amo,
-    Fence
+    InvOrFlu
 };
 
 enum LSU_cache_coreReq_type_amo {
@@ -198,7 +198,7 @@ public:
         std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo):
         m_opcode(opcode), m_type(type), m_wid(wid), m_reg_idxw(req_id), m_block_idx(block_idx), 
         m_mask(mask), m_amo_type(amo_type){
-        if (opcode == Read | opcode == Fence)
+        if (opcode == Read | opcode == InvOrFlu)
             m_data = false;
         else
             m_data = true;
@@ -230,7 +230,7 @@ class coreReq_pipe_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
         m_block_idx=coreReq.m_block_idx;
         m_mask=coreReq.m_mask;
         m_amo_type=coreReq.m_amo_type;
-        if (coreReq.m_opcode == Read | coreReq.m_opcode == Fence)
+        if (coreReq.m_opcode == Read | coreReq.m_opcode == InvOrFlu)
             m_data = false;
         else
             m_data = true;
