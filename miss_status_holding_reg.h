@@ -231,6 +231,10 @@ public:
     bool current_main_0_sub(block_addr_t block_idx){
         return m_vec_entry[block_idx].m_sub_en.size() == 0;
     }
+
+    bool empty(){
+        return m_vec_entry.empty();
+    }
     
     private:
 

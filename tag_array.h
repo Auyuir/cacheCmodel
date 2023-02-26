@@ -106,8 +106,10 @@ public:
 
     void invalidate_all();
 
+    bool has_dirty(int& set_idx, int& way_idx);
+
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
-    bool flush(memReq_Q& mReq_Q);
+    void flush_one(memReq_Q& mReq_Q,int set_idx, int way_idx);
     
     /*get the to-be-replaced way in a given set
     return: u_int32_t way_idx

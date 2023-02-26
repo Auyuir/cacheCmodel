@@ -50,7 +50,7 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
     }
 
     void tag_array::invalidate_all(){
-        //this function must be called after tag_array::flush()
+        //this function must be called after tag_array::flush_one()
         for (int i=0;i<NSET;++i){
             for (int j=0;j<NWAY;++j){
                 auto& the_one = m_tag[i][j];
@@ -60,21 +60,29 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
         }
     }
 
-    bool tag_array::flush(memReq_Q& mReq_Q){
-        //write back all the dirty lines
+    bool tag_array::has_dirty(int& set_idx, int& way_idx){
         for (int i=0;i<NSET;++i){
             for (int j=0;j<NWAY;++j){
                 auto& the_one = m_tag[i][j];
-                if (the_one.is_valid() && the_one.is_dirty()){
-                    bool success = issue_memReq_write(mReq_Q, the_one, i);
-                    if (!success){
-                        return false;
-                    }
-                    the_one.clear_dirty();
+                if (m_tag[i][j].is_valid() && m_tag[i][j].is_dirty()){
+                    set_idx = i;
+                    way_idx = j;
+                    return true;
                 }
             }
         }
-        return true;
+        return false;
+    }
+
+    void tag_array::flush_one(memReq_Q& mReq_Q,int set_idx, int way_idx){
+        auto& the_one = m_tag[set_idx][way_idx];
+        assert(the_one.is_valid() && the_one.is_dirty());
+        bool success = issue_memReq_write(mReq_Q, the_one, set_idx);
+        //if (!success){
+        //    return false;
+        //}
+        the_one.clear_dirty();
+        //return true;
     }
     
     /*get the to-be-replaced way in a given set

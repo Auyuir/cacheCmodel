@@ -220,6 +220,31 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                     }
                 }
             }
+        }else{//pipe1_opcode==InvOrFlu
+            int set_idx;
+            int way_idx;
+            if(m_tag_array.has_dirty(set_idx,way_idx)){
+                m_tag_array.flush_one(m_memReq_Q,set_idx,way_idx);
+            }else{
+                if(pipe1_r.m_type == 1){//Invalidate
+                    if(m_mshr.empty()){
+                        m_tag_array.invalidate_all();
+                        if(!m_coreRsp_Q.is_full()){
+                            dcache_2_LSU_coreRsp Invalidate_coreRsp(pipe1_r.m_reg_idxw,
+                                false,pipe1_r.m_wid,pipe1_r.m_mask);
+                            m_coreRsp_pipe2_reg.update_with(Invalidate_coreRsp);
+                            pipe1_r.invalidate();
+                        }
+                    }
+                }else{//Flush
+                    if(!m_coreRsp_Q.is_full()){
+                        dcache_2_LSU_coreRsp Flush_coreRsp(pipe1_r.m_reg_idxw,
+                            false,pipe1_r.m_wid,pipe1_r.m_mask);
+                        m_coreRsp_pipe2_reg.update_with(Flush_coreRsp);
+                        pipe1_r.invalidate();
+                    }
+                }
+            }
         }
     }
     //不清除pipe_r_ptr，下个周期再处理一回
