@@ -177,7 +177,7 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                         dcache_2_LSU_coreRsp hit_coreRsp(pipe1_r.m_reg_idxw,
                             rsp_with_data,pipe1_r.m_wid,pipe1_r.m_mask);
                         m_coreRsp_pipe2_reg.update_with(hit_coreRsp);//TODO:有内存管理问题吗
-                        if (rsp_with_data){
+                        if (!rsp_with_data){
                             m_tag_array.write_hit_mark_dirty(way_idx,set_idx,time);
                         }
                         pipe1_r.invalidate();
