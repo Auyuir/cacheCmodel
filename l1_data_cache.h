@@ -173,7 +173,7 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                         assert(!m_coreRsp_pipe2_reg.is_valid());
                         //arrange coreRsp
                         //本模型不建模访问data SRAM行为，在此处对该SRAM发起访问，
-                        bool rsp_with_data = (pipe1_opcode==Read);
+                        bool rsp_with_data = (pipe1_opcode==Write);
                         dcache_2_LSU_coreRsp hit_coreRsp(pipe1_r.m_reg_idxw,
                             rsp_with_data,pipe1_r.m_wid,pipe1_r.m_mask);
                         m_coreRsp_pipe2_reg.update_with(hit_coreRsp);//TODO:有内存管理问题吗
