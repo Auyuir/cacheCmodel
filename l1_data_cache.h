@@ -128,28 +128,29 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
         if (pipe1_opcode==Read || pipe1_opcode==Write || pipe1_opcode==Amo){
             if(pipe1_r.m_type == 1 ||//LR/SC
             pipe1_opcode==Amo){
+                enum entry_target_type new_spe_type;
+                enum TL_UH_A_opcode new_mReq_opcode;
+                u_int32_t new_mReq_param;
+                //push spe MSHR
+                if(pipe1_opcode==Amo){
+                    new_spe_type = AMO;
+                    cast_amo_LSU_type_2_TLUH_param(pipe1_r.m_amo_type,
+                    new_mReq_opcode,new_mReq_param);
+                }
+                else if (pipe1_opcode == Read){
+                    new_spe_type = LOAD_RESRV;
+                    new_mReq_opcode = Get;
+                    new_mReq_param = 0x1;
+                }
+                else{
+                    new_spe_type = STORE_COND;
+                    new_mReq_opcode = PutFullData;
+                    new_mReq_param = 0x1;
+                }
                 //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
-                if (m_mshr.probe_spe() == AVAIL){
+                if (m_mshr.probe_spe(new_spe_type) == AVAIL){
                     if (!m_memReq_Q.is_full()){
-                        enum entry_target_type new_spe_type;
-                        enum TL_UH_A_opcode new_mReq_opcode;
-                        u_int32_t new_mReq_param;
-                        //push spe MSHR
-                        if(pipe1_opcode==Amo){
-                            new_spe_type = AMO;
-                            cast_amo_LSU_type_2_TLUH_param(pipe1_r.m_amo_type,
-                                new_mReq_opcode,new_mReq_param);
-                        }
-                        else if (pipe1_opcode == Read){
-                            new_spe_type = LOAD_RESRV;
-                            new_mReq_opcode = Get;
-                            new_mReq_param = 0x1;
-                        }
-                        else{
-                            new_spe_type = STORE_COND;
-                            new_mReq_opcode = PutFullData;
-                            new_mReq_param = 0x1;
-                        }
+
                         m_mshr.allocate_special(new_spe_type, 
                             pipe1_r.m_reg_idxw, pipe1_r.m_wid);
                         //push memReq_Q

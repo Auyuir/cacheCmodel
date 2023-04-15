@@ -176,8 +176,14 @@ public:
         }
     }
 
-    enum spe_mshr_status probe_spe(){
+    enum spe_mshr_status probe_spe(enum entry_target_type probe_type){
         assert(m_special_entry.size() <= N_MSHR_SPECIAL_ENTRY);
+        if(probe_type == STORE_COND){
+            for(auto iter = m_special_entry.begin(); iter != m_special_entry.end();++iter){
+                if(iter->second.m_type == LOAD_RESRV)
+                    return FULL;
+            }
+        }
         if(m_special_entry.size() == N_MSHR_SPECIAL_ENTRY){
             return FULL;
             //std::cout << "LR/SC AMO + special entry full at " << time << std::endl;
