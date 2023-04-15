@@ -1,4 +1,7 @@
 #include "l1_data_cache.h"
+#include <iostream>
+#include <string>
+#include <fstream>
 
 struct DEBUG_L2_memRsp :public pipe_reg_base, public cache_building_block{
     DEBUG_L2_memRsp(){}
@@ -78,7 +81,7 @@ class test_env {
 
 public:
     test_env(){
-        DEBUG_init_stimuli();
+        //DEBUG_init_stimuli();
     }
 
     void DEBUG_print_coreRsp_pop(cycle_t time){
@@ -89,7 +92,9 @@ public:
         //dcache.m_coreRsp_ready = true;
     }
 
-    void DEBUG_cycle(cycle_t time){
+    void DEBUG_cycle(cycle_t time, std::ifstream& instr_file_name){
+        std::string instruction;
+
         DEBUG_print_coreRsp_pop(time);
         L2.cycle();
         if(!dcache.m_memReq_Q.is_empty()){
@@ -100,15 +105,27 @@ public:
         if(!L2.return_Q_is_empty()){
             dcache.m_memRsp_Q.m_Q.push_back(L2.DEBUG_serial_pop());
         }
-        if(!dcache.m_coreReq.is_valid() && !coreReq_stimuli.empty()){
-            auto size = coreReq_stimuli.size();
-            dcache.m_coreReq.update_with(coreReq_stimuli.front());
-            coreReq_stimuli.pop_front();
+        if(!dcache.m_coreReq.is_valid() && !instr_file_name.eof()){
+            getline(instr_file_name, instruction);
+            //auto size = coreReq_stimuli.size();
+            dcache.m_coreReq.update_with(parse_instruction(instruction));
+            //coreReq_stimuli.pop_front();
         }
     }
 
+    LSU_2_dcache_coreReq parse_instruction(std::string instruction){
+        int a = 0;
+        std::array<u_int32_t,32> p_addr = {};
+        std::array<bool,32> p_mask = {true};
+        if (instruction == "dead"){
+            a = 1;
+        }
+            LSU_2_dcache_coreReq coreReq = LSU_2_dcache_coreReq(Read,0,random(0,31),2*a,0x1f,p_addr,p_mask);
+        return coreReq;
+    }
+
     //TODO 丰富这个函数的个数，创造更多测试
-    void DEBUG_init_stimuli(){
+    /*void DEBUG_init_stimuli(){
         std::array<u_int32_t,32> p_addr = {};
         std::array<bool,32> p_mask = {true};
         for(int i=0;i<5;++i){
@@ -118,15 +135,27 @@ public:
             coreReq=LSU_2_dcache_coreReq(Write,0,random(0,31),2*i+1,0x1f,p_addr,p_mask);
             coreReq_stimuli.push_back(coreReq);
         }
-    }
+    }*/
 
     l1_data_cache dcache;
 private:
-    std::deque<LSU_2_dcache_coreReq> coreReq_stimuli;
+    //std::deque<LSU_2_dcache_coreReq> coreReq_stimuli;
     DEBUG_L2_model L2;
 };
 
-int main() {
+int main(int argc, char *argv[]) {
+
+    if (argc < 2) { // 检查命令行参数是否正确
+        std::cerr << "Usage: " << argv[0] << " input_file" << std::endl;
+        return 1;
+    }
+
+    std::ifstream infile(argv[1]);
+    if (!infile) { // 检查文件是否打开成功
+        std::cerr << "Error: cannot open file " << argv[1] << std::endl;
+        return 1;
+    }
+
     std::cout << "modeling cache now" << std::endl;
     test_env tb;
     tb.dcache.m_tag_array.DEBUG_random_initialize(100);
@@ -134,8 +163,11 @@ int main() {
 
     std::cout << std::endl << " time | event" << std::endl;
     for (int i = 100 ; i < 120 ; ++i){
-        tb.DEBUG_cycle(i);
+        tb.DEBUG_cycle(i,infile);
     }
     
     tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
+
+    infile.close();
+    return 0;
 }
