@@ -5,14 +5,14 @@
 //()里都是地址，其余是寄存器
 
 // **** RV32I load ****
-lb x5,0(x6)             //把x5写入地址x6+0
-lh
-lw 
+lw x5,0(x6)             //把x5写入地址x6+0
+//lh                    //consistency测试移除对不足一个word的支持
+//lb
 
 // **** RV32I store ****
-sb x7,0(x8)             //把地址x8+0的值写入x7
-sh
-sw
+sw x7,0(x8)             //把地址x8+0的值写入x7
+//sh
+//sb
 
 // **** RV32I fence ****
 fence rw,rw
@@ -34,14 +34,15 @@ amomax.w
 amominu.w
 amomaxu.w
 
+//consistency测试不支持向量
 // **** RV32V load ****
-vle32.v   v6,(x7),vm    //把地址x7及之后的31个值写入v6
-vlse32.v  v6,(x7),x5,vm //把地址x7及之后每隔x5的31个值写入v6
-vluxe32.v v6,(x7),v7,vm //把地址x7+v7的32个值写入v6  
-vloxe32.v
+//vle32.v   v6,(x7),vm    //把地址x7及之后的31个值写入v6
+//vlse32.v  v6,(x7),x5,vm //把地址x7及之后每隔x5的31个值写入v6
+//vluxe32.v v6,(x7),v7,vm //把地址x7+v7的32个值写入v6  
+//vloxe32.v
 
 // **** RV32V store ****
-vse32.v   v6,(x7),vm    //把v6写入地址x7及之后的31个位置
-vsse32.v  v6,(x7),x6,vm //把v6写入地址x7及之后每隔x6的31个位置
-vsuxe32.v v6,(x7),v7,vm //把v6写入地址x7+v7这32个位置
-vsoxe32.v
+//vse32.v   v6,(x7),vm    //把v6写入地址x7及之后的31个位置
+//vsse32.v  v6,(x7),x6,vm //把v6写入地址x7及之后每隔x6的31个位置
+//vsuxe32.v v6,(x7),v7,vm //把v6写入地址x7+v7这32个位置
+//vsoxe32.v
