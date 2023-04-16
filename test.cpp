@@ -122,8 +122,8 @@ public:
 
     bool parse_instruction(std::string instruction, LSU_2_dcache_coreReq& coreReq, cycle_t time){
         std::regex field_regex("\\s*(\\S+)\\s+(\\S+)\\s*");
-        std::regex opcode_regex("(\\S+)(?:\\.(\\S+))*");
-        std::regex reg_imm_regex("(\\S+)(?:\\,(\\S+))*");
+        //std::regex opcode_regex("([^\\.]+)(?:\\.(\\S+))*");
+        //std::regex reg_imm_regex("(\\S+)(?:\\,(\\S+))*");
         std::smatch field_match;
         if (!regex_match(instruction, field_match, field_regex)) {
             if(verbose_level>=2){
@@ -131,18 +131,35 @@ public:
             }
             return false;
         }
-
-        std::cout << "周期"<< time << "，opcode："<< field_match[1].str() << "。寄存器字段：" << field_match[2].str() << std::endl;
-
-        /*
-        std::string opcode = field_match[1].str();
+        if(verbose_level>=2){
+            std::cout << "周期"<< time << "，opcode："<< field_match[1].str() << "。寄存器字段：" ;//<< field_match[2].str() << std::endl;
+        }
+        
+        /*std::string opcode = field_match[1].str();
         std::vector<std::string> opcode_fields;
-        std::sregex_iterator op_fields_it(opcode.begin(),opcode.end(),opcode_regex);
-        std::sregex_iterator op_fields_end;
-        while(op_fields_it != op_fields_end){
-            opcode_fields.push_back(op_fields_it->str());
-            ++op_fields_it;
+        std::string opcode_field_temp;
+        std::stringstream opcode_ss(opcode);
+        while(getline(opcode_ss, opcode_field_temp, '.')){
+            opcode_fields.push_back(opcode_field_temp);
+            if(verbose_level>=2){
+                std::cout << opcode_fields.back() << " | " ;
+            }
         }*/
+
+        std::string reg_imm = field_match[2].str();
+        std::vector<std::string> reg_imm_fields;
+        std::string reg_imm_temp;
+        std::stringstream reg_imm_ss(reg_imm);
+        while(getline(reg_imm_ss, reg_imm_temp, ',')){
+            reg_imm_fields.push_back(reg_imm_temp);
+            if(verbose_level>=2){
+                std::cout << reg_imm_fields.back() << " | " ;
+            }
+        }
+
+        if(verbose_level>=2){
+            std::cout << std::endl;
+        }
         
         int a = 0;
         std::array<u_int32_t,32> p_addr = {};
