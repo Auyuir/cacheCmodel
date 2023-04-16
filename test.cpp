@@ -131,12 +131,11 @@ public:
             }
             return false;
         }
-        if(verbose_level>=2){
+        if(verbose_level>=4){
             std::cout << "周期"<< time << "，opcode："<< field_match[1].str() << "。寄存器字段：" ;//<< field_match[2].str() << std::endl;
         }
-        
-        /*std::string opcode = field_match[1].str();
-        std::vector<std::string> opcode_fields;
+        std::string opcode = field_match[1].str();
+        /*std::vector<std::string> opcode_fields;
         std::string opcode_field_temp;
         std::stringstream opcode_ss(opcode);
         while(getline(opcode_ss, opcode_field_temp, '.')){
@@ -145,30 +144,74 @@ public:
                 std::cout << opcode_fields.back() << " | " ;
             }
         }*/
-
         std::string reg_imm = field_match[2].str();
-        std::vector<std::string> reg_imm_fields;
+        std::array<std::string,4> reg_imm_fields;
         std::string reg_imm_temp;
         std::stringstream reg_imm_ss(reg_imm);
+        int field_cnt=0;
         while(getline(reg_imm_ss, reg_imm_temp, ',')){
-            reg_imm_fields.push_back(reg_imm_temp);
-            if(verbose_level>=2){
-                std::cout << reg_imm_fields.back() << " | " ;
+            reg_imm_fields[field_cnt]=reg_imm_temp;
+            if(verbose_level>=4){
+                std::cout << reg_imm_temp << " | " ;
             }
+            ++field_cnt;
         }
+        if(verbose_level>=4){std::cout << std::endl;}
 
-        if(verbose_level>=2){
-            std::cout << std::endl;
-        }
-        
-        int a = 0;
+        enum LSU_cache_coreReq_opcode coreReq_opcode;
+        uint32_t coreReq_type;
+        u_int32_t coreReq_wid;
+        u_int32_t coreReq_id;
+        u_int32_t coreReq_block_idx;
         std::array<u_int32_t,32> p_addr = {};
         std::array<bool,32> p_mask = {true};
-        if (instruction == "dead"){
-            a = 1;
+
+        if(opcode == "lb" || opcode == "lh" || opcode == "lw" ||
+        opcode == "lr.w" || opcode == "vle32.v" || opcode == "vlse32.v" ||
+        opcode == "vluxe32.v" || opcode == "vloxe32.v"){
+            coreReq_opcode = Read;
+            if (opcode == "lr.w"){
+                coreReq_type = 1;
+            }else{
+                coreReq_type = 0;
+            }
+            coreReq_wid = random(0,31);
+            coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
+            coreReq_block_idx = 0;//TODO
+            if(verbose_level>=2){
+                std::cout <<"周期"<< time << "，Load, op = " << opcode << std::endl;
+            }
+        }else if(opcode == "sb" || opcode == "sh" || opcode == "sw" || 
+        opcode == "sc.w" || opcode == "vse32.v" || opcode == "vsse32.v" || 
+        opcode == "vsuxe32.v" || opcode == "vsoxe32.v"){
+            if(verbose_level>=2){
+                std::cout <<"周期"<< time << "，Store, op = " << opcode << std::endl;
+            }
+        }else if(opcode == "fence"){
+            if(verbose_level>=2){
+                std::cout <<"周期"<< time << "，Fence, op = " << opcode << std::endl;
+            }
+        }else if(opcode[0] == 'a' && opcode[1] == 'm' && opcode[2] == 'o'){
+            if(verbose_level>=2){
+                std::cout <<"周期"<< time << "，AMO, op = " << opcode << std::endl;
+            }
+        }else{
+            if(verbose_level>=2){
+                std::cout <<"周期"<< time << "，非法指令："<< instruction << std::endl;
+            }
+            return false;
         }
-            coreReq = LSU_2_dcache_coreReq(Read,0,random(0,31),2*a,0x1f,p_addr,p_mask);
+
+        coreReq = LSU_2_dcache_coreReq(coreReq_opcode,coreReq_type,
+            coreReq_wid,coreReq_id,coreReq_block_idx,p_addr,p_mask);
         return true;
+    }
+
+    //输入：寄存器索引
+    int cast_regidx_to_int(std::string reg_idx){
+        assert(reg_idx[0]=='x' || reg_idx[0]=='v');
+        std::string number = reg_idx.substr(1);
+        return std::stoi(number);
     }
 
     //TODO 丰富这个函数的个数，创造更多测试
@@ -211,7 +254,7 @@ int main(int argc, char *argv[]) {
     }
 
     std::cout << "modeling cache now" << std::endl;
-    test_env tb(5);
+    test_env tb(2);
     //tb.dcache.m_tag_array.DEBUG_random_initialize(100);
     //tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
 
