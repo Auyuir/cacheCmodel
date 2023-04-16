@@ -154,8 +154,9 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                 }
                 //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
                 if (m_mshr.probe_spe(new_spe_type) == AVAIL){
-                    if (!m_memReq_Q.is_full()){
-
+                    if (!m_memReq_Q.is_full() && 
+                    m_tag_array.invalidate_chosen(m_memReq_Q,pipe1_block_idx)){
+                        //这里在建模中一个周期向memReqQ入栈了两个值，后面还得再考虑考虑
                         m_mshr.allocate_special(new_spe_type, 
                             pipe1_r.m_reg_idxw, pipe1_r.m_wid);
                         //push memReq_Q

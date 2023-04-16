@@ -102,7 +102,7 @@ public:
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
     bool allocate(memReq_Q& mReq_Q,u_int32_t& way_replacement, u_int32_t block_idx,cycle_t time);
 
-    void invalidate_chosen(u_int32_t block_idx);
+    bool invalidate_chosen(memReq_Q& mReq_Q, u_int32_t block_idx);
 
     void invalidate_all();
 

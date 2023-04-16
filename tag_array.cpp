@@ -27,7 +27,7 @@ enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx)
 
     bool tag_array::allocate(memReq_Q& mReq_Q,u_int32_t& way_replacement, u_int32_t block_idx,cycle_t time){
         u_int32_t set_idx = get_set_idx(block_idx);
-        u_int32_t way_replacement = replace_choice(set_idx);
+        way_replacement = replace_choice(set_idx);
         auto& the_one = m_tag[set_idx][way_replacement];
         if (the_one.is_dirty()){
             if (!issue_memReq_write(mReq_Q, the_one, set_idx))
@@ -39,14 +39,21 @@ enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx)
         return true;
     }
 
-    void tag_array::invalidate_chosen(u_int32_t block_idx){
+    bool tag_array::invalidate_chosen(memReq_Q& mReq_Q, u_int32_t block_idx){
         u_int32_t set_idx = get_set_idx(block_idx);
         u_int32_t tag = get_tag(block_idx);
+        bool success = true;
         for (int i=0;i<NWAY;++i){
-            if (m_tag[set_idx][i].is_hit(tag))
-                m_tag[set_idx][i].invalidate();
+            if (m_tag[set_idx][i].is_hit(tag)){
+                auto& the_one = m_tag[set_idx][i];
+                if(the_one.is_dirty()){
+                    success = issue_memReq_write(mReq_Q, the_one, set_idx);
+                };
+                the_one.invalidate();
+            }
             break;
         }
+        return success;
     }
 
     void tag_array::invalidate_all(){
