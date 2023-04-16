@@ -1,8 +1,8 @@
 #include "tag_array.h"
 
-enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx){
+enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx){
         u_int32_t set_idx = get_set_idx(block_idx);
-        u_int64_t tag = get_tag(block_idx);
+        u_int32_t tag = get_tag(block_idx);
         for (int i=0;i<NWAY;++i){
             if (m_tag[set_idx][i].is_hit(tag)){
                 way_idx = i;
@@ -25,10 +25,10 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
         the_one.update_access_time(time);
     }
 
-    bool tag_array::allocate(memReq_Q& mReq_Q, u_int64_t block_idx,cycle_t time){
+    bool tag_array::allocate(memReq_Q& mReq_Q,u_int32_t& way_replacement, u_int32_t block_idx,cycle_t time){
         u_int32_t set_idx = get_set_idx(block_idx);
-        u_int32_t way_idx = replace_choice(set_idx);
-        auto& the_one = m_tag[set_idx][way_idx];
+        u_int32_t way_replacement = replace_choice(set_idx);
+        auto& the_one = m_tag[set_idx][way_replacement];
         if (the_one.is_dirty()){
             if (!issue_memReq_write(mReq_Q, the_one, set_idx))
                 return false;
@@ -39,9 +39,9 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
         return true;
     }
 
-    void tag_array::invalidate_chosen(u_int64_t block_idx){
+    void tag_array::invalidate_chosen(u_int32_t block_idx){
         u_int32_t set_idx = get_set_idx(block_idx);
-        u_int64_t tag = get_tag(block_idx);
+        u_int32_t tag = get_tag(block_idx);
         for (int i=0;i<NWAY;++i){
             if (m_tag[set_idx][i].is_hit(tag))
                 m_tag[set_idx][i].invalidate();

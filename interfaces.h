@@ -80,7 +80,7 @@ struct dcache_2_L2_memReq : cache_building_block {
     dcache_2_L2_memReq(){}
 
     dcache_2_L2_memReq(enum TL_UH_A_opcode opcode, 
-        u_int32_t param, u_int32_t source_id, u_int64_t block_idx) 
+        u_int32_t param, u_int32_t source_id, u_int32_t block_idx) 
         : a_opcode(opcode), a_param(param),
         a_source(source_id){
         a_address = block_idx << LOGB2(NLINE*LINESIZE);
@@ -95,7 +95,7 @@ struct dcache_2_L2_memReq : cache_building_block {
     u_int32_t a_param;
     //int a_size;
     u_int32_t a_source; //TODO
-    u_int64_t a_address;
+    u_int32_t a_address;
     //u_int32_t a_mask;
     bool a_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
@@ -119,6 +119,8 @@ struct L2_2_dcache_memRsp : cache_building_block {
     L2_2_dcache_memRsp(){}
     L2_2_dcache_memRsp(u_int32_t req_id):m_req_id(req_id){}
     u_int32_t m_req_id;
+    bool m_with_data;
+    cache_line_t m_data;
 };
 
 class memRsp_Q : cache_building_block{
@@ -194,7 +196,7 @@ public:
     LSU_2_dcache_coreReq(){}
 
     LSU_2_dcache_coreReq(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
-        u_int32_t wid, u_int32_t req_id, u_int64_t block_idx,vec_nlane_t perLane_addr, 
+        u_int32_t wid, u_int32_t req_id, u_int32_t block_idx,vec_nlane_t perLane_addr, 
         std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo):
         m_opcode(opcode), m_type(type), m_wid(wid), m_reg_idxw(req_id), m_block_idx(block_idx), 
         m_mask(mask), m_amo_type(amo_type){
@@ -210,7 +212,7 @@ public:
     enum LSU_cache_coreReq_type_amo m_amo_type;//在硬件中，这个变量和type合用一个信号
     u_int32_t m_wid;//used for coreRsp
     u_int32_t m_reg_idxw;//used for coreRsp
-    u_int64_t m_block_idx;
+    u_int32_t m_block_idx;
     std::array<bool,NLANE> m_mask;
     vec_nlane_t m_block_offset;//block_offset
     vec_nlane_t m_word_offset;//block_offset
@@ -238,7 +240,7 @@ class coreReq_pipe_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
     }
 
     /*coreReq_pipe_reg(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
-        u_int32_t wid, u_int32_t req_id, u_int64_t block_idx,vec_nlane_t perLane_addr, 
+        u_int32_t wid, u_int32_t req_id, u_int32_t block_idx,vec_nlane_t perLane_addr, 
         std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo):
         LSU_2_dcache_coreReq(opcode,type,wid,req_id,block_idx,perLane_addr,mask,amo_type){
         set_valid();

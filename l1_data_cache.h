@@ -1,18 +1,22 @@
 #include "parameter.h"
 #include "tag_array.h"
 #include "miss_status_holding_reg.h"
+#include "data_array.h"
 #include "interfaces.h"
 
 class mshr_missRsp_pipe_reg : public mshr_miss_rsp, public pipe_reg_base{
     public:
     mshr_missRsp_pipe_reg(){}
 
-    void update_with(mshr_miss_rsp miss_rsp){
+    void update_with(mshr_miss_rsp miss_rsp, cache_line_t& fill_data){
         m_type = miss_rsp.m_type;
         m_req_id = miss_rsp.m_req_id;
         m_block_idx = miss_rsp.m_block_idx;
+        m_fill_data = fill_data;
         set_valid();
     }
+
+    cache_line_t m_fill_data;
 };
 
 class l1_data_cache : public cache_building_block{
@@ -89,6 +93,7 @@ public:
 
     tag_array m_tag_array;
     mshr m_mshr;
+    data_array m_data_array;
     coreRsp_Q m_coreRsp_Q;
     memReq_Q m_memReq_Q;
     memRsp_Q m_memRsp_Q;
@@ -263,16 +268,18 @@ void l1_data_cache::coreReq_pipe3_cycle(){
 void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
     if(m_memRsp_Q.m_Q.size() != 0){
         if(!m_memRsp_pipe1_reg.is_valid()){
-            auto const req_id = m_memRsp_Q.m_Q.front().m_req_id;
-            block_addr_t block_idx;
-            auto missRsp_type = m_mshr.detect_missRsp_type(block_idx, req_id);
-            mshr_miss_rsp new_miss_rsp = mshr_miss_rsp(missRsp_type,req_id, block_idx);
-            m_memRsp_pipe1_reg.update_with(new_miss_rsp);
-
+            if(m_memRsp_Q.m_Q.front().m_with_data == true){
+                auto const req_id = m_memRsp_Q.m_Q.front().m_req_id;
+                block_addr_t block_idx;
+                auto missRsp_type = m_mshr.detect_missRsp_type(block_idx, req_id);
+                mshr_miss_rsp new_miss_rsp = mshr_miss_rsp(missRsp_type,req_id, block_idx);
+                m_memRsp_pipe1_reg.update_with(new_miss_rsp,m_memRsp_Q.m_Q.front().m_data);
+            }else{
+                //在这更新WSHR
+            }
             //debug info
-            std::cout<< std::setw(5) << time << " | memRsp";
-            std::cout << ", req_id=" << req_id <<std::endl;
-
+            //std::cout<< std::setw(5) << time << " | memRsp";
+            //std::cout << ", req_id=" << req_id <<std::endl;
             m_memRsp_Q.m_Q.pop_front();
         }
     }
@@ -282,14 +289,16 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
     if(m_memRsp_pipe1_reg.is_valid()){
         auto& type = m_memRsp_pipe1_reg.m_type;
         auto& block_idx = m_memRsp_pipe1_reg.m_block_idx;
+        u_int32_t set_idx = get_set_idx(block_idx);
+        u_int32_t way_replace;
         auto& req_id = m_memRsp_pipe1_reg.m_req_id;
         bool current_missRsp_clear = false;
         if (type == REGULAR_READ_MISS){
             bool allocate_success = true;
             if(!tag_req_current_missRsp_has_sent){
-                allocate_success = m_tag_array.allocate(m_memReq_Q, block_idx, time);
+                allocate_success = m_tag_array.allocate(m_memReq_Q, way_replace, block_idx, time);
+                m_data_array.fill(set_idx,way_replace,m_memRsp_pipe1_reg.m_fill_data);
                 tag_req_current_missRsp_has_sent = true;
-                //本建模不体现，硬件在这里需要启动data SRAM的更新
             }
             if(!m_mshr.current_main_0_sub(block_idx)){
                 if(!m_coreRsp_pipe2_reg.is_valid()){
@@ -328,4 +337,6 @@ void l1_data_cache::cycle(cycle_t time){
 
     coreReq_pipe1_cycle(time);//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之前运行
     memRsp_pipe1_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
+
+
 }

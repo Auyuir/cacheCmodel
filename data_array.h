@@ -7,14 +7,14 @@
 #include <iomanip>
 #include <bitset>
 
-class tag_array : cache_building_block {
-
+class data_array : cache_building_block {
+public:
     //return: 数据
     cache_line_t read(u_int32_t set_idx,u_int32_t way_idx){
         return m_data[set_idx][way_idx];
     }
 
-    void fill_write(u_int32_t set_idx,u_int32_t way_idx,cache_line_t& fill_line){
+    void fill(u_int32_t set_idx,u_int32_t way_idx,cache_line_t& fill_line){
         m_data[set_idx][way_idx] = fill_line;
     }
 

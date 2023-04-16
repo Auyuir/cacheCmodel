@@ -82,7 +82,7 @@ private:
     bool m_valid;
     bool m_dirty;
 
-    u_int64_t m_tag;
+    u_int32_t m_tag;
     unsigned int m_last_access_time;
     unsigned int m_last_fill_time;
 
@@ -93,16 +93,16 @@ class tag_array : cache_building_block {
 public:
     tag_array(){}
 
-    enum tag_access_status probe(u_int64_t block_idx, u_int32_t& way_idx);
+    enum tag_access_status probe(u_int32_t block_idx, u_int32_t& way_idx);
 
     void read_hit_update_access_time(u_int32_t way_idx, u_int32_t set_idx,cycle_t time);
 
     void write_hit_mark_dirty(u_int32_t way_idx, u_int32_t set_idx,cycle_t time);
 
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
-    bool allocate(memReq_Q& mReq_Q, u_int64_t block_idx,cycle_t time);
+    bool allocate(memReq_Q& mReq_Q,u_int32_t& way_replacement, u_int32_t block_idx,cycle_t time);
 
-    void invalidate_chosen(u_int64_t block_idx);
+    void invalidate_chosen(u_int32_t block_idx);
 
     void invalidate_all();
 

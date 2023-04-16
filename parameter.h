@@ -10,10 +10,10 @@ typedef u_int32_t block_addr_t;
 
 class cache_building_block{
 public:
-    u_int64_t get_tag(u_int64_t block_idx){
+    u_int32_t get_tag(u_int32_t block_idx){
         return block_idx >> LOGB2(NSET);
     }
-    u_int64_t get_set_idx(u_int64_t block_idx){
+    u_int32_t get_set_idx(u_int32_t block_idx){
         return ((1 << LOGB2(NSET)) - 1) & block_idx;
     }
 
