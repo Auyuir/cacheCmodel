@@ -4,21 +4,23 @@
 #include "utils.h"
 #include "parameter.h"
 #include "interfaces.h"
+#include <iomanip>
+#include <bitset>
 
 class tag_array : cache_building_block {
 
     //return: 数据
     cache_line_t read(u_int32_t set_idx,u_int32_t way_idx){
-        return data[set_idx][way_idx];
+        return m_data[set_idx][way_idx];
     }
 
     void fill_write(u_int32_t set_idx,u_int32_t way_idx,cache_line_t& fill_line){
-        data[set_idx][way_idx] = fill_line;
+        m_data[set_idx][way_idx] = fill_line;
     }
 
     void write_hit(u_int32_t set_idx,u_int32_t way_idx, 
         vec_nlane_t hit_data, vec_nlane_t block_offset, std::array<bool,NLANE> lane_mask){
-        auto& selected_line = data[set_idx][way_idx];
+        auto& selected_line = m_data[set_idx][way_idx];
         for(int i = 1;i<NLANE;++i){
             if(lane_mask[i]==true){
                 selected_line[block_offset[i]] = hit_data[i];
@@ -26,7 +28,38 @@ class tag_array : cache_building_block {
         }
     }
 
+    void DEBUG_visualize_array(u_int32_t set_idx_start=0, u_int32_t set_idx_end=NSET-1){
+        DEBUG_print_title();
+        for(int i=set_idx_start;i<set_idx_start+set_idx_end;++i){
+            std::cout << std::setw(7) << i << " |";
+            for (int j=0;j<NWAY;++j){
+                DEBUG_print_a_way(i,j);
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    void DEBUG_print_title(){
+        std::cout << "set_idx ";
+        for(int i=0;i<NWAY;++i){
+            std::cout << "| way "<< i <<"               ";
+        }
+        std::cout <<"|"<< std::endl << std::setw(8) <<" ";
+        for(int i=0;i<NWAY;++i){
+            std::cout << "| v d --tag--- lat lft";
+        }
+        std::cout << std::endl;
+    }
+
+    void DEBUG_print_a_way(u_int32_t set_idx, u_int32_t way_idx){
+        auto& the_one = m_data[set_idx][way_idx];
+        for(const auto& word : the_one){
+            std::cout << word << ",";
+        }
+        std::cout << std::endl;
+    }
+
 private:
-    std::array<std::array<cache_line_t, NWAY>,NSET> data;
+    std::array<std::array<cache_line_t, NWAY>,NSET> m_data;
 };
 #endif

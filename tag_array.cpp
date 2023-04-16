@@ -142,7 +142,7 @@ enum tag_access_status tag_array::probe(u_int64_t block_idx, u_int32_t& way_idx)
     }
 
     //for test use only
-    void tag_array::DEBUG_visualize_array(u_int32_t set_idx_start, u_int32_t set_idx_end){
+    void tag_array::DEBUG_visualize_array(u_int32_t set_idx_start=0, u_int32_t set_idx_end=NSET-1){
         DEBUG_print_title();
         for(int i=set_idx_start;i<set_idx_start+set_idx_end;++i){
             std::cout << std::setw(7) << i << " |";
