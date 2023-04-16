@@ -2,6 +2,8 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+//#include <sstream>
+#include <regex>
 
 struct DEBUG_L2_memRsp :public pipe_reg_base, public cache_building_block{
     DEBUG_L2_memRsp(){}
@@ -84,6 +86,10 @@ public:
         //DEBUG_init_stimuli();
     }
 
+    test_env(int verbose){
+        verbose_level = verbose;
+    }
+
     void DEBUG_print_coreRsp_pop(cycle_t time){
         if (dcache.m_coreRsp_Q.m_Q.size() != 0){
             dcache.m_coreRsp_Q.DEBUG_print(time);
@@ -107,21 +113,45 @@ public:
         }
         if(!dcache.m_coreReq.is_valid() && !instr_file_name.eof()){
             getline(instr_file_name, instruction);
-            //auto size = coreReq_stimuli.size();
-            dcache.m_coreReq.update_with(parse_instruction(instruction));
-            //coreReq_stimuli.pop_front();
+            LSU_2_dcache_coreReq coreReq;
+            if(parse_instruction(instruction,coreReq,time)){
+                dcache.m_coreReq.update_with(coreReq);
+            }//no else, just skip this cycle coreReq
         }
     }
 
-    LSU_2_dcache_coreReq parse_instruction(std::string instruction){
+    bool parse_instruction(std::string instruction, LSU_2_dcache_coreReq& coreReq, cycle_t time){
+        std::regex field_regex("\\s*(\\S+)\\s+(\\S+)\\s*");
+        std::regex opcode_regex("(\\S+)(?:\\.(\\S+))*");
+        std::regex reg_imm_regex("(\\S+)(?:\\,(\\S+))*");
+        std::smatch field_match;
+        if (!regex_match(instruction, field_match, field_regex)) {
+            if(verbose_level>=2){
+                std::cout <<"周期"<< time << "，空行或非法指令："<< instruction << std::endl;
+            }
+            return false;
+        }
+
+        std::cout << "周期"<< time << "，opcode："<< field_match[1].str() << "。寄存器字段：" << field_match[2].str() << std::endl;
+
+        /*
+        std::string opcode = field_match[1].str();
+        std::vector<std::string> opcode_fields;
+        std::sregex_iterator op_fields_it(opcode.begin(),opcode.end(),opcode_regex);
+        std::sregex_iterator op_fields_end;
+        while(op_fields_it != op_fields_end){
+            opcode_fields.push_back(op_fields_it->str());
+            ++op_fields_it;
+        }*/
+        
         int a = 0;
         std::array<u_int32_t,32> p_addr = {};
         std::array<bool,32> p_mask = {true};
         if (instruction == "dead"){
             a = 1;
         }
-            LSU_2_dcache_coreReq coreReq = LSU_2_dcache_coreReq(Read,0,random(0,31),2*a,0x1f,p_addr,p_mask);
-        return coreReq;
+            coreReq = LSU_2_dcache_coreReq(Read,0,random(0,31),2*a,0x1f,p_addr,p_mask);
+        return true;
     }
 
     //TODO 丰富这个函数的个数，创造更多测试
@@ -141,6 +171,13 @@ public:
 private:
     //std::deque<LSU_2_dcache_coreReq> coreReq_stimuli;
     DEBUG_L2_model L2;
+    int verbose_level=1;
+
+    /*
+    verbose_level = 0: 无任何打印信息
+    verbose_level = 1: 重要打印信息
+    verbose_level = 2: 主要
+    */
 };
 
 int main(int argc, char *argv[]) {
@@ -157,16 +194,24 @@ int main(int argc, char *argv[]) {
     }
 
     std::cout << "modeling cache now" << std::endl;
-    test_env tb;
-    tb.dcache.m_tag_array.DEBUG_random_initialize(100);
-    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
+    test_env tb(5);
+    //tb.dcache.m_tag_array.DEBUG_random_initialize(100);
+    //tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
 
     std::cout << std::endl << " time | event" << std::endl;
-    for (int i = 100 ; i < 120 ; ++i){
+    std::string instruction;
+    LSU_2_dcache_coreReq coreReq;
+    int i=0;
+    while(!infile.eof()){
+        getline(infile, instruction);
+        tb.parse_instruction(instruction,coreReq,i);
+        ++i;
+    }
+    /*for (int i = 100 ; i < 120 ; ++i){
         tb.DEBUG_cycle(i,infile);
     }
     
-    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
+    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);*/
 
     infile.close();
     return 0;

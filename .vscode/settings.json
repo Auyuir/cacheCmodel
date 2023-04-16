@@ -47,6 +47,12 @@
         "stdexcept": "cpp",
         "streambuf": "cpp",
         "typeinfo": "cpp",
-        "map": "cpp"
+        "map": "cpp",
+        "chrono": "cpp",
+        "condition_variable": "cpp",
+        "cstring": "cpp",
+        "ratio": "cpp",
+        "regex": "cpp",
+        "shared_mutex": "cpp"
     }
 }

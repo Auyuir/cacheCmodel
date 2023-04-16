@@ -10,7 +10,7 @@
             "request": "launch",
             //编译后binary的路径
             "program": "${workspaceRoot}/test",
-            "args": [],
+            "args": ["${workspaceRoot}/test_instr.txt"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
