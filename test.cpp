@@ -5,18 +5,25 @@
 //#include <sstream>
 #include <regex>
 
-struct DEBUG_L2_memRsp :public pipe_reg_base, public cache_building_block{
+struct DEBUG_L2_memRsp :public pipe_reg_base, public L2_2_dcache_memRsp{
     DEBUG_L2_memRsp(){}
-    DEBUG_L2_memRsp(L2_2_dcache_memRsp inf, enum TL_UH_D_opcode opcode)
-        :m_inf(inf),m_opcode(opcode){
-            set_valid();
-        }
 
-    L2_2_dcache_memRsp m_inf;
-    enum TL_UH_D_opcode m_opcode;
+    void update_with(L2_2_dcache_memRsp memRsp){
+    d_opcode = memRsp.d_opcode;
+    d_source = memRsp.d_opcode;
+    d_mask = memRsp.d_mask;
+    d_data = memRsp.d_data;
+    set_valid();
+    }
 };
+
 class DEBUG_L2_model : public cache_building_block{
 public:
+    DEBUG_L2_model(){
+        for(int i = 0;i<m_L2_data_array.size();++i){
+            m_L2_data_array[i] = i*10;
+        }
+    }
 
     bool return_Q_is_empty(){
         return m_return_Q.empty();
@@ -45,15 +52,27 @@ public:
     void DEBUG_L2_memReq_process(dcache_2_L2_memReq req, cycle_t time){
         if (!m_process_Q[m_minimal_process_latency-1].is_valid()){
             enum TL_UH_D_opcode return_op;
-            if(req.a_opcode == Get || req.a_opcode == ArithmeticData 
-                || req.a_opcode == LogicalData){
-                return_op = AccessAckData;
-            }else{
+            cache_line_t return_data{};
+            std::array<bool,LINEWORDS> return_mask{};
+            if(req.a_opcode == PutFullData || (req.a_opcode == PutPartialData && req.a_param == 0x0)){
                 return_op = AccessAck;
+            }else{
+                return_op = AccessAckData;
+                if (req.a_opcode == Get){
+                    if(req.a_param == 0x0){
+                        return_mask.fill(true);
+                        assert((req.a_address + LINEWORDS < m_L2_capacity) && "L1 memReq Get请求的缓存行地址超出受测L2模型范围");
+                        auto it_base = m_L2_data_array.begin()+req.a_address;
+                        std::copy(it_base,it_base+LINEWORDS,return_data.begin());
+                    }else{
+                        assert((req.a_param == 0x1) && "非法Get，在L2被逮捕");
+                        return_mask[0] = true;
+                        return_data[0] = m_L2_data_array[req.a_address];
+                    }
+                }
             }
-            L2_2_dcache_memRsp new_memRsp = L2_2_dcache_memRsp(req.a_source);
-            DEBUG_L2_memRsp new_L2_return = DEBUG_L2_memRsp(new_memRsp,return_op);
-            m_process_Q[m_minimal_process_latency-1] = new_L2_return;
+            L2_2_dcache_memRsp new_memRsp = L2_2_dcache_memRsp(return_op,req.a_source,return_mask,return_data);
+            m_process_Q[m_minimal_process_latency-1].update_with(new_memRsp);
 
             //debug info
             std::cout << std::setw(5) << time << " | memReq";
@@ -63,9 +82,7 @@ public:
 
     void cycle(){
         if (m_process_Q[0].is_valid()){
-            if (m_process_Q[0].m_opcode == AccessAckData){
-                m_return_Q.push_back(m_process_Q[0].m_inf);
-            }
+            m_return_Q.push_back(m_process_Q[0]);
         }
         for (unsigned stage = 0; stage < m_minimal_process_latency - 1; ++stage){
             m_process_Q[stage] = m_process_Q[stage + 1];
@@ -75,8 +92,10 @@ public:
 private:
     //从L2 memReq到L2 memRsp的最小间隔周期
     constexpr static int m_minimal_process_latency = 3;
+    constexpr static int m_L2_capacity = 64;
     std::array<DEBUG_L2_memRsp,m_minimal_process_latency> m_process_Q {};
     std::deque<L2_2_dcache_memRsp> m_return_Q;
+    std::array<u_int32_t,m_L2_capacity> m_L2_data_array;
 };
 
 class test_env : cache_building_block{
@@ -362,16 +381,16 @@ int main(int argc, char *argv[]) {
     std::string instruction;
     LSU_2_dcache_coreReq coreReq;
     int i=0;
-    while(!infile.eof()){
+    /*while(!infile.eof()){
         getline(infile, instruction);
         tb.parse_instruction(instruction,coreReq,i);
         ++i;
-    }
-    /*for (int i = 100 ; i < 120 ; ++i){
+    }*/
+    for (int i = 100 ; i < 120 ; ++i){
         tb.DEBUG_cycle(i,infile);
     }
     
-    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);*/
+    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
 
     infile.close();
     return 0;

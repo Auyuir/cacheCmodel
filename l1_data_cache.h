@@ -347,12 +347,13 @@ void l1_data_cache::coreReq_pipe3_cycle(){
 void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
     if(m_memRsp_Q.m_Q.size() != 0){
         if(!m_memRsp_pipe1_reg.is_valid()){
-            if(m_memRsp_Q.m_Q.front().m_with_data == true){
-                auto const req_id = m_memRsp_Q.m_Q.front().m_req_id;
+            if(m_memRsp_Q.m_Q.front().d_opcode == AccessAckData){
+                //这种机制要求SC也返回AccessAckData，而不是AccessAck
+                auto const req_id = m_memRsp_Q.m_Q.front().d_source;
                 block_addr_t block_idx;
                 auto missRsp_type = m_mshr.detect_missRsp_type(block_idx, req_id);
                 mshr_miss_rsp new_miss_rsp = mshr_miss_rsp(missRsp_type,req_id, block_idx);
-                m_memRsp_pipe1_reg.update_with(new_miss_rsp,m_memRsp_Q.m_Q.front().m_data);
+                m_memRsp_pipe1_reg.update_with(new_miss_rsp,m_memRsp_Q.m_Q.front().d_data);
             }else{
                 //在这更新WSHR
             }

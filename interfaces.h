@@ -111,10 +111,13 @@ public:
 
 struct L2_2_dcache_memRsp : cache_building_block {
     L2_2_dcache_memRsp(){}
-    L2_2_dcache_memRsp(u_int32_t req_id):m_req_id(req_id){}
-    u_int32_t m_req_id;
-    bool m_with_data;
-    cache_line_t m_data;
+    L2_2_dcache_memRsp(enum TL_UH_D_opcode opcode, u_int32_t req_id, std::array<bool,LINEWORDS> mask , cache_line_t data)
+        :d_opcode(opcode),d_source(req_id),d_mask(mask),d_data(data){}
+    enum TL_UH_D_opcode d_opcode;
+    u_int32_t d_source;
+    //bool m_with_data;
+    std::array<bool,LINEWORDS> d_mask;
+    cache_line_t d_data;
 };
 
 class memRsp_Q : cache_building_block{
