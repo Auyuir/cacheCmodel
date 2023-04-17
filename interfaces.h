@@ -79,16 +79,10 @@ struct dcache_2_L2_memReq : cache_building_block {
     public:
     dcache_2_L2_memReq(){}
 
-    dcache_2_L2_memReq(enum TL_UH_A_opcode opcode, 
-        u_int32_t param, u_int32_t source_id, u_int32_t block_idx) 
-        : a_opcode(opcode), a_param(param),
-        a_source(source_id){
+    dcache_2_L2_memReq(enum TL_UH_A_opcode opcode, u_int32_t param, 
+    u_int32_t source_id, u_int32_t block_idx, cache_line_t data) 
+    :a_opcode(opcode), a_param(param), a_source(source_id), a_data(data){
         a_address = block_idx << LOGB2(NLINE*LINESIZE);
-        if (a_opcode == Get)
-            a_data = false;
-        else
-            a_data = true;
-        //a_data = //actually no need to model data in C
     }
 
     enum TL_UH_A_opcode a_opcode;
@@ -96,9 +90,9 @@ struct dcache_2_L2_memReq : cache_building_block {
     //int a_size;
     u_int32_t a_source; //TODO
     u_int32_t a_address;
-    //u_int32_t a_mask;
-    bool a_data;//only to indicate whether there is a data transaction
-    //std::array<u_int32_t,NLINE>* a_data;
+    std::array<bool,LINEWORDS> a_mask;
+    //bool a_data;//only to indicate whether there is a data transaction
+    cache_line_t a_data;
 };
 
 class memReq_Q : cache_building_block{

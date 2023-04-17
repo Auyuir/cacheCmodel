@@ -125,8 +125,9 @@ public:
         assert(!pipe_reg.is_valid());
         auto& the_entry = m_special_entry[req_id];
         std::array<bool,NLANE> mask_of_scalar = {true };
+        vec_nlane_t data{0};//无意义，cRsp此时不需要数据
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
-            req_id,true,the_entry.m_wid,mask_of_scalar);
+            req_id,data,the_entry.m_wid,mask_of_scalar);
         pipe_reg.update_with(new_rsp);
         //AMO,LR,SC都不引起data access写入。
         //AMO和LR向coreRsp.data写回数据
@@ -142,8 +143,9 @@ public:
         auto& current_main = m_vec_entry[block_idx].m_sub_en;
         assert(!current_main.empty());
         auto& current_sub = current_main.front();
+        vec_nlane_t data{0};//无意义，cRsp此时不需要数据
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
-            current_sub.m_req_id,true,current_sub.m_wid,current_sub.m_mask);
+            current_sub.m_req_id,data,current_sub.m_wid,current_sub.m_mask);
         pipe_reg.update_with(new_rsp);
         current_main.pop_front();
 

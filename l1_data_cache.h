@@ -160,9 +160,10 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                         m_mshr.allocate_special(new_spe_type, 
                             pipe1_r.m_reg_idxw, pipe1_r.m_wid);
                         //push memReq_Q
+                        cache_line_t data_memReq{pipe1_r.m_data[0]};
                         dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq(
                             new_mReq_opcode, new_mReq_param, 
-                            pipe1_r.m_reg_idxw, pipe1_block_idx);
+                            pipe1_r.m_reg_idxw, pipe1_block_idx,data_memReq);
                         m_memReq_Q.m_Q.push_back(new_spe_req);
 
                         pipe1_r.invalidate();
@@ -207,8 +208,9 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                                     pipe1_r.m_reg_idxw, pipe1_r.m_wid, pipe1_r.m_mask);
                                 m_mshr.allocate_vec_main(pipe1_block_idx, new_vec_sub);
                                 //push memReq Q
+                                cache_line_t data{0};
                                 dcache_2_L2_memReq new_read_miss = dcache_2_L2_memReq(
-                                    Get, 0x0, pipe1_r.m_reg_idxw, pipe1_block_idx);
+                                    Get, 0x0, pipe1_r.m_reg_idxw, pipe1_block_idx,data);
                                 m_memReq_Q.m_Q.push_back(new_read_miss);
                                 pipe1_r.invalidate();
                             }
@@ -222,13 +224,19 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                     }else{//Write (write no allocation when miss)
                         if (!m_memReq_Q.is_full() && !m_coreRsp_Q.is_full()){
                             //arrange coreRsp
-                            vec_nlane_t data{0};
+                            vec_nlane_t data_coreRsp{0};
                             dcache_2_LSU_coreRsp write_miss_coreRsp(pipe1_r.m_reg_idxw,
-                                data,pipe1_r.m_wid,pipe1_r.m_mask);
+                                data_coreRsp,pipe1_r.m_wid,pipe1_r.m_mask);
                             m_coreRsp_pipe2_reg.update_with(write_miss_coreRsp);
                             //push memReq Q
+                            cache_line_t data_memReq;
+                            for(int i = 1;i<NLANE;++i){
+                                if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
+                                    data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
+                                }
+                            }
                             dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
-                                PutFullData, 0x0, pipe1_r.m_reg_idxw, pipe1_block_idx);
+                                PutFullData, 0x0, pipe1_r.m_reg_idxw, pipe1_block_idx,data_memReq);
                             m_memReq_Q.m_Q.push_back(new_write_miss);
                             pipe1_r.invalidate();
                         }
