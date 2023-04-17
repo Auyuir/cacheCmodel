@@ -356,12 +356,11 @@ public:
         waveform << "cRsp_v,cRsp_wid,cRsp_id,cRsp_mask,cRsp_wxd,cRsp_data_0" << ",";
         waveform << "d_v,d_op,d_source,d_mask_0,d_mask_1,d_data_0" << ",";
         waveform << "a_v,a_op,a_param,a_source,a_addr,a_mask_0,a_mask_1,a_data" << std::endl;
-//        
-        waveform << std::endl;
     }
 
     void DEBUG_waveform_a_cycle(std::ofstream& waveform){
         dcache.DEBUG_waveform_a_cycle(waveform);
+        waveform << std::endl;
     }
 
     l1_data_cache dcache;

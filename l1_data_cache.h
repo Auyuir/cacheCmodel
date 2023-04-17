@@ -84,8 +84,11 @@ public:
         
     }
 
-    void DEBUG_visualize_coreReq_a_cycle(){
-
+    void DEBUG_waveform_coreReq_a_cycle(std::ofstream& waveform_file){
+        auto& o = m_coreReq;
+        waveform_file << o.is_valid() << o.m_opcode << o.m_type << o.m_wid;
+        waveform_file << o.m_reg_idxw << o.m_block_idx << o.m_block_offset[0];
+        waveform_file << o.m_mask[0] << o.m_mask[1] << o.m_data[0];
     }
 public:
     coreReq_pipe_reg m_coreReq;
