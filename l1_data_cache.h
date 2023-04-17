@@ -209,7 +209,7 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                             m_data_array.write_hit(set_idx,way_idx,pipe1_r.m_data,pipe1_r.m_block_offset,pipe1_r.m_mask);
                         }else{
                             auto data_from_array = m_data_array.read(set_idx,way_idx);
-                            for(int i = 1;i<NLANE;++i){
+                            for(int i = 0;i<NLANE;++i){
                                 if(pipe1_r.m_mask[i]==true){
                                     data[i] = data_from_array[pipe1_r.m_block_offset[i]];
                                 }
@@ -261,7 +261,7 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                             //push memReq Q
                             cache_line_t data_memReq;
                             std::array<bool,LINEWORDS> write_miss_mask;
-                            for(int i = 1;i<NLANE;++i){
+                            for(int i = 0;i<NLANE;++i){
                                 if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
                                     data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
                                     write_miss_mask[pipe1_r.m_block_offset[i]] = true;
