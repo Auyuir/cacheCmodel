@@ -55,20 +55,25 @@ public:
             cache_line_t return_data{};
             std::array<bool,LINEWORDS> return_mask{};
             if(req.a_opcode == PutFullData || (req.a_opcode == PutPartialData && req.a_param == 0x0)){
-                return_op = AccessAck;
+                return_op = AccessAck;//常规写入确实、替换写回、冲刷
             }else{
                 return_op = AccessAckData;
-                if (req.a_opcode == Get){
+                if (req.a_opcode == Get){//常规读出缺失
                     if(req.a_param == 0x0){
                         return_mask.fill(true);
                         assert((req.a_address + LINEWORDS < m_L2_capacity) && "L1 memReq Get请求的缓存行地址超出受测L2模型范围");
                         auto it_base = m_L2_data_array.begin()+req.a_address;
                         std::copy(it_base,it_base+LINEWORDS,return_data.begin());
-                    }else{
+                    }else{//LR
                         assert((req.a_param == 0x1) && "非法Get，在L2被逮捕");
                         return_mask[0] = true;
                         return_data[0] = m_L2_data_array[req.a_address];
                     }
+                }else if(req.a_opcode == PutPartialData && req.a_param == 0x1){//SC
+                    return_mask[0] = true;
+                    return_data[0] = 0x0;//0x0表示成功，0x1表示失败
+                }else{
+                    assert(true && "L2处理到非法memReq请求");
                 }
             }
             L2_2_dcache_memRsp new_memRsp = L2_2_dcache_memRsp(return_op,req.a_source,return_mask,return_data);
