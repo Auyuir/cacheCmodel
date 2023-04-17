@@ -79,7 +79,7 @@ private:
     std::deque<L2_2_dcache_memRsp> m_return_Q;
 };
 
-class test_env {
+class test_env : cache_building_block{
 
 public:
     test_env(){
@@ -163,8 +163,9 @@ public:
         u_int32_t coreReq_wid;
         u_int32_t coreReq_id;
         u_int32_t coreReq_block_idx;
-        std::array<u_int32_t,32> p_addr = {};
-        std::array<bool,32> p_mask = {true};
+        vec_nlane_t p_addr{};
+        std::array<bool,NLANE> p_mask = {true};
+        vec_nlane_t p_data{};
 
         if(opcode == "lb" || opcode == "lh" || opcode == "lw" ||
         opcode == "lr.w" || opcode == "vle32.v" || opcode == "vlse32.v" ||
@@ -203,7 +204,7 @@ public:
         }
 
         coreReq = LSU_2_dcache_coreReq(coreReq_opcode,coreReq_type,
-            coreReq_wid,coreReq_id,coreReq_block_idx,p_addr,p_mask);
+            coreReq_wid,coreReq_id,coreReq_block_idx,p_addr,p_mask,p_data);
         return true;
     }
 
