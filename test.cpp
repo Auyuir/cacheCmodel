@@ -178,12 +178,12 @@ public:
         u_int32_t coreReq_id;
         u_int32_t coreReq_block_idx;
         vec_nlane_t p_addr{};
-        std::array<bool,NLANE> p_mask = {true};
+        std::array<bool,NLANE> p_mask{};
+        p_mask.fill(false);
         vec_nlane_t p_data{};
 
         if(opcode == "lb" || opcode == "lh" || opcode == "lw" ||
-        opcode == "lr.w" || opcode == "vle32.v" || opcode == "vlse32.v" ||
-        opcode == "vluxe32.v" || opcode == "vloxe32.v"){
+        opcode == "lr.w" || opcode == "vle32.v"){
             coreReq_opcode = Read;
             if (opcode == "lr.w"){
                 coreReq_type = 1;
@@ -192,7 +192,19 @@ public:
             }
             coreReq_wid = random(0,31);
             coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
-            coreReq_block_idx = 0;//TODO
+            coreReq_block_idx = std::stoi(reg_imm_fields[1]);
+            if(opcode == "lb" || opcode == "lh" || opcode == "lw" || opcode == "lr.w"){
+                p_addr[0] = 0x0;
+                p_mask[0] = true;
+            }else{
+                if(opcode == "vle32.v"){
+                    for(int i = 0;i<NLANE;++i){
+                        p_addr[i] = i;
+                    }
+                    p_mask.fill(true);
+                }
+            }
+            
             if(verbose_level>=2){
                 std::cout <<"周期"<< time << "，Load, op = " << opcode << std::endl;
             }
@@ -217,8 +229,14 @@ public:
             return false;
         }
 
-        coreReq = LSU_2_dcache_coreReq(coreReq_opcode,coreReq_type,
-            coreReq_wid,coreReq_id,coreReq_block_idx,p_addr,p_mask,p_data);
+        coreReq = LSU_2_dcache_coreReq(coreReq_opcode,
+            coreReq_type,
+            coreReq_wid,
+            coreReq_id,
+            coreReq_block_idx,
+            p_addr,
+            p_mask,
+            p_data);
         return true;
     }
 
