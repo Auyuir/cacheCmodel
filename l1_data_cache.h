@@ -162,17 +162,29 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                         if (dirty){
                             m_tag_array.flush_one(set_idx,way_evict);
                             u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
-                            dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
-                                PutFullData, 0x0, 0xFFFFF, block_addr,m_data_array.read(set_idx,way_evict));
+                            std::array<bool,LINEWORDS> full_mask;
+                            full_mask.fill(true);
+                            dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
+                                PutFullData, 
+                                0x0, 
+                                0xFFFFF, 
+                                block_addr,
+                                m_data_array.read(set_idx,way_evict),//TODO这里data_array不能在这个周期完成
+                                full_mask);
                             m_memReq_Q.m_Q.push_back(new_dirty_back);
                         }else{
                             m_mshr.allocate_special(new_spe_type, 
                             pipe1_r.m_reg_idxw, pipe1_r.m_wid);
                             //push memReq_Q
                             cache_line_t data_memReq{pipe1_r.m_data[0]};
+                            std::array<bool,LINEWORDS> onehot_mask{true};
                             dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq(
-                                new_mReq_opcode, new_mReq_param, 
-                                pipe1_r.m_reg_idxw, pipe1_block_idx,data_memReq);
+                                new_mReq_opcode,
+                                new_mReq_param,
+                                pipe1_r.m_reg_idxw,
+                                pipe1_block_idx,
+                                data_memReq,
+                                onehot_mask);
                             m_memReq_Q.m_Q.push_back(new_spe_req);
                             m_tag_array.invalidate_chosen(set_idx,way_evict);
                             pipe1_r.invalidate();
@@ -220,8 +232,15 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                                 m_mshr.allocate_vec_main(pipe1_block_idx, new_vec_sub);
                                 //push memReq Q
                                 cache_line_t data{0};
+                                std::array<bool,LINEWORDS> full_mask;
+                                full_mask.fill(true);
                                 dcache_2_L2_memReq new_read_miss = dcache_2_L2_memReq(
-                                    Get, 0x0, pipe1_r.m_reg_idxw, pipe1_block_idx,data);
+                                    Get,
+                                    0x0,
+                                    pipe1_r.m_reg_idxw,
+                                    pipe1_block_idx,
+                                    data,
+                                    full_mask);
                                 m_memReq_Q.m_Q.push_back(new_read_miss);
                                 pipe1_r.invalidate();
                             }
@@ -241,13 +260,20 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                             m_coreRsp_pipe2_reg.update_with(write_miss_coreRsp);
                             //push memReq Q
                             cache_line_t data_memReq;
+                            std::array<bool,LINEWORDS> write_miss_mask;
                             for(int i = 1;i<NLANE;++i){
                                 if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
                                     data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
+                                    write_miss_mask[pipe1_r.m_block_offset[i]] = true;
                                 }
                             }
                             dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
-                                PutFullData, 0x0, pipe1_r.m_reg_idxw, pipe1_block_idx,data_memReq);
+                                PutPartialData, 
+                                0x0,
+                                pipe1_r.m_reg_idxw,
+                                pipe1_block_idx,
+                                data_memReq,
+                                write_miss_mask);
                             m_memReq_Q.m_Q.push_back(new_write_miss);
                             pipe1_r.invalidate();
                         }
@@ -262,8 +288,15 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                 if(!m_memReq_Q.is_full()){
                     m_tag_array.flush_one(set_idx,way_idx);
                     u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
+                    std::array<bool,LINEWORDS> full_mask;
+                    full_mask.fill(true);
                     dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
-                        PutFullData, 0x0, 0xFFFFF, block_addr,m_data_array.read(set_idx,way_idx));
+                        PutFullData,
+                        0x0,
+                        0xFFFFF,
+                        block_addr,
+                        m_data_array.read(set_idx,way_idx),
+                        full_mask);
                     m_memReq_Q.m_Q.push_back(new_dirty_back);
                 }
             }else{
@@ -337,8 +370,15 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
                     tag_replace, way_replace, block_idx, time);
                 if(allocate_success){
                     u_int32_t block_addr = (tag_replace << LOGB2(NSET) + set_idx) << 2;
+                    std::array<bool,LINEWORDS> full_mask;
+                    full_mask.fill(true);
                     dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
-                        PutFullData, 0x0, 0xFFFFF, block_addr,m_data_array.read(set_idx,way_replace));
+                        PutFullData,
+                        0x0,
+                        0xFFFFF,
+                        block_addr,
+                        m_data_array.read(set_idx,way_replace),
+                        full_mask);
                     m_memReq_Q.m_Q.push_back(new_dirty_back);
                     m_data_array.fill(set_idx,way_replace,m_memRsp_pipe1_reg.m_fill_data);
                 }

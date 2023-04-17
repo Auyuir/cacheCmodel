@@ -47,7 +47,7 @@ public:
     constexpr static u_int32_t MEM_REQ_Q_DEPTH = 10;
     constexpr static u_int32_t MEM_RSP_Q_DEPTH = 4;
 
-    typedef std::array<u_int32_t,NLINE> cache_line_t;
+    typedef std::array<u_int32_t,LINEWORDS> cache_line_t;
 };
 
 #endif

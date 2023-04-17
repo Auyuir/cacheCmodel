@@ -80,8 +80,8 @@ struct dcache_2_L2_memReq : cache_building_block {
     dcache_2_L2_memReq(){}
 
     dcache_2_L2_memReq(enum TL_UH_A_opcode opcode, u_int32_t param, 
-    u_int32_t source_id, u_int32_t block_idx, cache_line_t data) 
-    :a_opcode(opcode), a_param(param), a_source(source_id), a_data(data){
+    u_int32_t source_id, u_int32_t block_idx, cache_line_t data, std::array<bool,LINEWORDS> mask) 
+    :a_opcode(opcode), a_param(param), a_source(source_id), a_data(data), a_mask(mask){
         a_address = block_idx << LOGB2(NLINE*LINESIZE);
     }
 
