@@ -100,16 +100,18 @@ public:
     void write_hit_mark_dirty(u_int32_t way_idx, u_int32_t set_idx,cycle_t time);
 
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
-    bool allocate(memReq_Q& mReq_Q,u_int32_t& way_replacement, u_int32_t block_idx,cycle_t time);
+    bool allocate(bool memReqQ_full, u_int32_t& tag_replacement, u_int32_t& way_replacement, u_int32_t block_idx,cycle_t time);
 
-    bool invalidate_chosen(memReq_Q& mReq_Q, u_int32_t block_idx);
+    void invalidate_chosen(u_int32_t set_idx,u_int32_t way_idx);
 
     void invalidate_all();
 
-    bool has_dirty(int& set_idx, int& way_idx);
+    bool line_is_dirty(u_int32_t block_idx, u_int32_t& way_idx);
+
+    bool has_dirty(u_int32_t& tag_replacement, u_int32_t& set_idx, u_int32_t& way_idx);
 
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
-    void flush_one(memReq_Q& mReq_Q,int set_idx, int way_idx);
+    void flush_one(u_int32_t set_idx, u_int32_t way_idx);
     
     /*get the to-be-replaced way in a given set
     return: u_int32_t way_idx
@@ -118,7 +120,7 @@ public:
     u_int32_t replace_choice(u_int32_t set_idx);
     
     //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
-    bool issue_memReq_write(memReq_Q& memReq_Q, meta_entry_t& line_to_issue, u_int32_t set_idx);
+    //bool issue_memReq_write(memReq_Q& memReq_Q, meta_entry_t& line_to_issue, u_int32_t set_idx);
 
     //for test use only
     void DEBUG_random_initialize(cycle_t time);

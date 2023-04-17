@@ -154,19 +154,30 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                 }
                 //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
                 if (m_mshr.probe_spe(new_spe_type) == AVAIL){
-                    if (!m_memReq_Q.is_full() && 
-                    m_tag_array.invalidate_chosen(m_memReq_Q,pipe1_block_idx)){
-                        //这里在建模中一个周期向memReqQ入栈了两个值，后面还得再考虑考虑
-                        m_mshr.allocate_special(new_spe_type, 
+                    u_int32_t tag_evict;
+                    u_int32_t way_evict;
+                    const u_int32_t set_idx = get_set_idx(pipe1_block_idx);
+                    bool dirty = m_tag_array.line_is_dirty(pipe1_block_idx,way_evict);
+                    if (!m_memReq_Q.is_full()){
+                        if (dirty){
+                            m_tag_array.flush_one(set_idx,way_evict);
+                            u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
+                            dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
+                                PutFullData, 0x0, 0xFFFFF, block_addr,m_data_array.read(set_idx,way_evict));
+                            m_memReq_Q.m_Q.push_back(new_dirty_back);
+                        }else{
+                            m_mshr.allocate_special(new_spe_type, 
                             pipe1_r.m_reg_idxw, pipe1_r.m_wid);
-                        //push memReq_Q
-                        cache_line_t data_memReq{pipe1_r.m_data[0]};
-                        dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq(
-                            new_mReq_opcode, new_mReq_param, 
-                            pipe1_r.m_reg_idxw, pipe1_block_idx,data_memReq);
-                        m_memReq_Q.m_Q.push_back(new_spe_req);
-
-                        pipe1_r.invalidate();
+                            //push memReq_Q
+                            cache_line_t data_memReq{pipe1_r.m_data[0]};
+                            dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq(
+                                new_mReq_opcode, new_mReq_param, 
+                                pipe1_r.m_reg_idxw, pipe1_block_idx,data_memReq);
+                            m_memReq_Q.m_Q.push_back(new_spe_req);
+                            m_tag_array.invalidate_chosen(set_idx,way_evict);
+                            pipe1_r.invalidate();
+                        }
+                        //这里在建模中一个周期向memReqQ入栈了两个值，后面还得再考虑考虑
                     }
                 }
             }else{//regular R/W
@@ -244,10 +255,17 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                 }
             }
         }else{//pipe1_opcode==InvOrFlu
-            int set_idx;
-            int way_idx;
-            if(m_tag_array.has_dirty(set_idx,way_idx)){
-                m_tag_array.flush_one(m_memReq_Q,set_idx,way_idx);
+            u_int32_t set_idx;
+            u_int32_t way_idx;
+            u_int32_t tag_evict;
+            if(m_tag_array.has_dirty(tag_evict,set_idx,way_idx)){
+                if(!m_memReq_Q.is_full()){
+                    m_tag_array.flush_one(set_idx,way_idx);
+                    u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
+                    dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
+                        PutFullData, 0x0, 0xFFFFF, block_addr,m_data_array.read(set_idx,way_idx));
+                    m_memReq_Q.m_Q.push_back(new_dirty_back);
+                }
             }else{
                 vec_nlane_t data{0};
                 if(pipe1_r.m_type == 1){//Invalidate
@@ -314,8 +332,16 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
         if (type == REGULAR_READ_MISS){
             bool allocate_success = true;
             if(!tag_req_current_missRsp_has_sent){
-                allocate_success = m_tag_array.allocate(m_memReq_Q, way_replace, block_idx, time);
-                m_data_array.fill(set_idx,way_replace,m_memRsp_pipe1_reg.m_fill_data);
+                u_int32_t tag_replace;
+                allocate_success = m_tag_array.allocate(m_memReq_Q.is_full(), 
+                    tag_replace, way_replace, block_idx, time);
+                if(allocate_success){
+                    u_int32_t block_addr = (tag_replace << LOGB2(NSET) + set_idx) << 2;
+                    dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
+                        PutFullData, 0x0, 0xFFFFF, block_addr,m_data_array.read(set_idx,way_replace));
+                    m_memReq_Q.m_Q.push_back(new_dirty_back);
+                    m_data_array.fill(set_idx,way_replace,m_memRsp_pipe1_reg.m_fill_data);
+                }
                 tag_req_current_missRsp_has_sent = true;
             }
             if(!m_mshr.current_main_0_sub(block_idx)){

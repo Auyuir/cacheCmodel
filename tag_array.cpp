@@ -25,35 +25,22 @@ enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx)
         the_one.update_access_time(time);
     }
 
-    bool tag_array::allocate(memReq_Q& mReq_Q,u_int32_t& way_replacement, u_int32_t block_idx,cycle_t time){
+    bool tag_array::allocate(bool memReqQ_full, u_int32_t& tag_replacement, u_int32_t& way_replacement, u_int32_t block_idx, cycle_t time){
         u_int32_t set_idx = get_set_idx(block_idx);
         way_replacement = replace_choice(set_idx);
         auto& the_one = m_tag[set_idx][way_replacement];
-        if (the_one.is_dirty()){
-            if (!issue_memReq_write(mReq_Q, the_one, set_idx))
-                return false;
-        }
+        if (the_one.is_dirty() && memReqQ_full)
+            return false;
         the_one.allocate(get_tag(block_idx));
         the_one.update_fill_time(time);
         the_one.update_access_time(time);
         return true;
     }
 
-    bool tag_array::invalidate_chosen(memReq_Q& mReq_Q, u_int32_t block_idx){
-        u_int32_t set_idx = get_set_idx(block_idx);
-        u_int32_t tag = get_tag(block_idx);
-        bool success = true;
-        for (int i=0;i<NWAY;++i){
-            if (m_tag[set_idx][i].is_hit(tag)){
-                auto& the_one = m_tag[set_idx][i];
-                if(the_one.is_dirty()){
-                    success = issue_memReq_write(mReq_Q, the_one, set_idx);
-                };
-                the_one.invalidate();
-            }
-            break;
-        }
-        return success;
+    void tag_array::invalidate_chosen(u_int32_t set_idx,u_int32_t way_idx){
+        auto& the_one = m_tag[set_idx][way_idx];
+        assert(!the_one.is_dirty());
+        the_one.invalidate();
     }
 
     void tag_array::invalidate_all(){
@@ -67,13 +54,30 @@ enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx)
         }
     }
 
-    bool tag_array::has_dirty(int& set_idx, int& way_idx){
+    bool tag_array::line_is_dirty(u_int32_t block_idx, u_int32_t& way_idx){
+        u_int32_t set_idx = get_set_idx(block_idx);
+        u_int32_t tag = get_tag(block_idx);
+        for (int i=0;i<NWAY;++i){
+            if (m_tag[set_idx][i].is_hit(tag)){
+                auto& the_one = m_tag[set_idx][i];
+                if(the_one.is_dirty()){
+                    way_idx = i;
+                    return true;
+                };
+            }
+            break;
+        }
+        return false;
+    }
+
+    bool tag_array::has_dirty(u_int32_t& tag_replacement, u_int32_t& set_idx, u_int32_t& way_idx){
         for (int i=0;i<NSET;++i){
             for (int j=0;j<NWAY;++j){
                 auto& the_one = m_tag[i][j];
                 if (m_tag[i][j].is_valid() && m_tag[i][j].is_dirty()){
                     set_idx = i;
                     way_idx = j;
+                    tag_replacement = m_tag[i][j].tag();
                     return true;
                 }
             }
@@ -81,15 +85,11 @@ enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx)
         return false;
     }
 
-    void tag_array::flush_one(memReq_Q& mReq_Q,int set_idx, int way_idx){
+    void tag_array::flush_one(u_int32_t set_idx, u_int32_t way_idx){
         auto& the_one = m_tag[set_idx][way_idx];
         assert(the_one.is_valid() && the_one.is_dirty());
-        bool success = issue_memReq_write(mReq_Q, the_one, set_idx);
-        //if (!success){
-        //    return false;
-        //}
+        //if(!memReqQ_full)
         the_one.clear_dirty();
-        //return true;
     }
     
     /*get the to-be-replaced way in a given set
@@ -113,7 +113,7 @@ enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx)
         return least_recently_idx;
     }
     
-    bool tag_array::issue_memReq_write(memReq_Q& mReq_Q, meta_entry_t& line_to_issue, u_int32_t set_idx){
+    /*bool tag_array::issue_memReq_write(memReq_Q& mReq_Q, meta_entry_t& line_to_issue, u_int32_t set_idx){
         if (!mReq_Q.is_full()){
             u_int32_t block_addr = (line_to_issue.tag() << LOGB2(NSET) + set_idx) << 2;
                 dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
@@ -122,7 +122,7 @@ enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx)
             return true;
         }else
             return false;
-    }
+    }*/
 
     //for test use only
     void tag_array::DEBUG_random_initialize(cycle_t time){
