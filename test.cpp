@@ -90,6 +90,20 @@ public:
         verbose_level = verbose;
     }
 
+    void print_config_summary(){
+        std::cout << "NLANE=" << NLANE << std::endl;
+        std::cout << "NSET=" << NSET << "; NWAY=" << NWAY << std::endl;
+        std::cout << "LINEWORDS=" << LINEWORDS << std::endl;
+        std::cout << "N_MSHR_ENTRY=" << N_MSHR_ENTRY << std::endl;
+        std::cout << "N_MSHR_SUBENTRY=" << N_MSHR_SUBENTRY << std::endl;
+        std::cout << "N_MSHR_SPECIAL_ENTRY=" << N_MSHR_SPECIAL_ENTRY << std::endl;
+        if(verbose_level>=4){
+            std::cout << "CORE_RSP_Q_DEPTH=" << CORE_RSP_Q_DEPTH << std::endl;
+            std::cout << "MEM_REQ_Q_DEPTH=" << MEM_REQ_Q_DEPTH << std::endl;
+            std::cout << "MEM_RSP_Q_DEPTH=" << MEM_RSP_Q_DEPTH << std::endl;
+        }
+    }
+
     void DEBUG_print_coreRsp_pop(cycle_t time){
         if (dcache.m_coreRsp_Q.m_Q.size() != 0){
             dcache.m_coreRsp_Q.DEBUG_print(time);
@@ -256,6 +270,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << "modeling cache now" << std::endl;
     test_env tb(2);
+    tb.print_config_summary();
     //tb.dcache.m_tag_array.DEBUG_random_initialize(100);
     //tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
 

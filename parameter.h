@@ -24,9 +24,9 @@ public:
     constexpr static u_int32_t WORDSIZE = 4;//in bytes
     constexpr static u_int32_t ADDR_LENGTH = 32;
 
-    constexpr static u_int32_t NLANE = 32;
+    constexpr static u_int32_t NLANE = 4;//32;
 
-    constexpr static u_int32_t NSET = 32;//For 4K B per way
+    constexpr static u_int32_t NSET = 4;//32;//For 4K B per way
     constexpr static u_int32_t NWAY = 2;
 
     constexpr static u_int32_t NLINE = NSET * NWAY;
@@ -38,7 +38,7 @@ public:
     const static u_int32_t DATA_SRAM_LATENCY = 0;//in cycle
 
     constexpr static u_int32_t N_MSHR_ENTRY = 4;
-    constexpr static u_int32_t N_MSHR_SUBENTRY = 4;
+    constexpr static u_int32_t N_MSHR_SUBENTRY = 2;//4;
     constexpr static u_int32_t N_MSHR_SPECIAL_ENTRY = 4;
 
     typedef std::array<u_int32_t,NLANE> vec_nlane_t;
