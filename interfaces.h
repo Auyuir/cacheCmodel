@@ -137,7 +137,7 @@ struct dcache_2_LSU_coreRsp : cache_building_block {
 public:
     dcache_2_LSU_coreRsp(){}
 
-    dcache_2_LSU_coreRsp(u_int32_t reg_idxw, bool data, 
+    dcache_2_LSU_coreRsp(u_int32_t reg_idxw, vec_nlane_t data, 
         u_int32_t wid, std::array<bool,NLANE> mask):m_wid(wid),
         m_reg_idxw(reg_idxw),m_mask(mask),m_data(data){
         bool m_wxd = true;//IsScalar?
@@ -153,7 +153,7 @@ public:
     u_int32_t m_reg_idxw;
     std::array<bool,NLANE> m_mask;
     bool m_wxd;//indicate whether its a scalar instruction
-    bool m_data;//only to indicate whether there is a data transaction
+    vec_nlane_t m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
 };
 
@@ -177,11 +177,6 @@ public:
             std::cout << ", is scalar ";
         else
             std::cout << ", is vector ";
-        
-        if(!tar.m_data)
-            std::cout << ", no data " << std::endl;
-        else
-            std::cout << ", with data " << std::endl;
         ++DEBUG_print_number;
     }
 
@@ -197,13 +192,9 @@ public:
 
     LSU_2_dcache_coreReq(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
         u_int32_t wid, u_int32_t req_id, u_int32_t block_idx,vec_nlane_t perLane_addr, 
-        std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo):
+        std::array<bool,NLANE> mask,vec_nlane_t data, enum LSU_cache_coreReq_type_amo amo_type=notamo):
         m_opcode(opcode), m_type(type), m_wid(wid), m_reg_idxw(req_id), m_block_idx(block_idx), 
-        m_mask(mask), m_amo_type(amo_type){
-        if (opcode == Read | opcode == InvOrFlu)
-            m_data = false;
-        else
-            m_data = true;
+        m_mask(mask), m_amo_type(amo_type), m_data(data){
         //a_data = //actually no need to model data in C
     }
 
@@ -216,7 +207,7 @@ public:
     std::array<bool,NLANE> m_mask;
     vec_nlane_t m_block_offset;//block_offset
     vec_nlane_t m_word_offset;//block_offset
-    bool m_data;//only to indicate whether there is a data transaction
+    vec_nlane_t m_data;//only to indicate whether there is a data transaction
     //std::array<u_int32_t,NLINE>* a_data;
 };
 
@@ -232,10 +223,7 @@ class coreReq_pipe_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
         m_block_idx=coreReq.m_block_idx;
         m_mask=coreReq.m_mask;
         m_amo_type=coreReq.m_amo_type;
-        if (coreReq.m_opcode == Read | coreReq.m_opcode == InvOrFlu)
-            m_data = false;
-        else
-            m_data = true;
+        m_data=coreReq.m_data;
         set_valid();
     }
 

@@ -175,18 +175,25 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                     m_tag_array.probe(pipe1_block_idx,way_idx);
                 if (status == HIT){
                     if(!m_coreRsp_Q.is_full()){
-                        auto set_idx = get_set_idx(pipe1_block_idx);
+                        u_int32_t set_idx = get_set_idx(pipe1_block_idx);
                         m_tag_array.read_hit_update_access_time(set_idx,way_idx,time);
                         assert(!m_coreRsp_pipe2_reg.is_valid());
                         //arrange coreRsp
-                        //本模型不建模访问data SRAM行为，在此处对该SRAM发起访问，
-                        bool rsp_with_data = (pipe1_opcode==Write);
-                        dcache_2_LSU_coreRsp hit_coreRsp(pipe1_r.m_reg_idxw,
-                            rsp_with_data,pipe1_r.m_wid,pipe1_r.m_mask);
-                        m_coreRsp_pipe2_reg.update_with(hit_coreRsp);//TODO:有内存管理问题吗
-                        if (!rsp_with_data){
+                        vec_nlane_t data{0};
+                        if (pipe1_opcode==Write){
                             m_tag_array.write_hit_mark_dirty(way_idx,set_idx,time);
+                            m_data_array.write_hit(set_idx,way_idx,pipe1_r.m_data,pipe1_r.m_block_offset,pipe1_r.m_mask);
+                        }else{
+                            auto data_from_array = m_data_array.read(set_idx,way_idx);
+                            for(int i = 1;i<NLANE;++i){
+                                if(pipe1_r.m_mask[i]==true){
+                                    data[i] = data_from_array[pipe1_r.m_block_offset[i]];
+                                }
+                            }
                         }
+                        dcache_2_LSU_coreRsp hit_coreRsp(pipe1_r.m_reg_idxw,
+                            data, pipe1_r.m_wid, pipe1_r.m_mask);
+                        m_coreRsp_pipe2_reg.update_with(hit_coreRsp);
                         pipe1_r.invalidate();
                     }
                 }else{//status == MISS
@@ -215,8 +222,9 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                     }else{//Write (write no allocation when miss)
                         if (!m_memReq_Q.is_full() && !m_coreRsp_Q.is_full()){
                             //arrange coreRsp
+                            vec_nlane_t data{0};
                             dcache_2_LSU_coreRsp write_miss_coreRsp(pipe1_r.m_reg_idxw,
-                                false,pipe1_r.m_wid,pipe1_r.m_mask);
+                                data,pipe1_r.m_wid,pipe1_r.m_mask);
                             m_coreRsp_pipe2_reg.update_with(write_miss_coreRsp);
                             //push memReq Q
                             dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
@@ -233,12 +241,13 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
             if(m_tag_array.has_dirty(set_idx,way_idx)){
                 m_tag_array.flush_one(m_memReq_Q,set_idx,way_idx);
             }else{
+                vec_nlane_t data{0};
                 if(pipe1_r.m_type == 1){//Invalidate
                     if(m_mshr.empty()){
                         m_tag_array.invalidate_all();
                         if(!m_coreRsp_Q.is_full()){
                             dcache_2_LSU_coreRsp Invalidate_coreRsp(pipe1_r.m_reg_idxw,
-                                false,pipe1_r.m_wid,pipe1_r.m_mask);
+                                data,pipe1_r.m_wid,pipe1_r.m_mask);
                             m_coreRsp_pipe2_reg.update_with(Invalidate_coreRsp);
                             pipe1_r.invalidate();
                         }
@@ -246,7 +255,7 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                 }else{//Flush
                     if(!m_coreRsp_Q.is_full()){
                         dcache_2_LSU_coreRsp Flush_coreRsp(pipe1_r.m_reg_idxw,
-                            false,pipe1_r.m_wid,pipe1_r.m_mask);
+                            data,pipe1_r.m_wid,pipe1_r.m_mask);
                         m_coreRsp_pipe2_reg.update_with(Flush_coreRsp);
                         pipe1_r.invalidate();
                     }

@@ -22,7 +22,7 @@ public:
         vec_nlane_t hit_data, vec_nlane_t block_offset, std::array<bool,NLANE> lane_mask){
         auto& selected_line = m_data[set_idx][way_idx];
         for(int i = 1;i<NLANE;++i){
-            if(lane_mask[i]==true){
+            if(lane_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
                 selected_line[block_offset[i]] = hit_data[i];
             }
         }
