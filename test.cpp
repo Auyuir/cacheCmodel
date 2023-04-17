@@ -114,6 +114,15 @@ public:
         verbose_level = verbose;
     }
 
+    test_env(bool dump_csv){
+        m_dump_csv = dump_csv;
+    }
+
+    test_env(int verbose, bool dump_csv){
+        verbose_level = verbose;
+        m_dump_csv = dump_csv;
+    }
+
     void print_config_summary(){
         std::cout << "NLANE=" << NLANE << std::endl;
         std::cout << "NSET=" << NSET << "; NWAY=" << NWAY << std::endl;
@@ -134,6 +143,11 @@ public:
             dcache.m_coreRsp_Q.m_Q.pop_front();
         }
         //dcache.m_coreRsp_ready = true;
+    }
+
+    void DEBUG_cycle(cycle_t time, std::ifstream& instr_file_name, std::ofstream& waveform_file){
+        DEBUG_cycle(time,instr_file_name);
+        DEBUG_waveform_a_cycle(waveform_file);
     }
 
     void DEBUG_cycle(cycle_t time, std::ifstream& instr_file_name){
@@ -337,30 +351,30 @@ public:
         return std::stoi(addr_in_bracket);
     }
 
-    //TODO 丰富这个函数的个数，创造更多测试
-    /*void DEBUG_init_stimuli(){
-        std::array<u_int32_t,32> p_addr = {};
-        std::array<bool,32> p_mask = {true};
-        for(int i=0;i<5;++i){
-            //cache大小目前是32*2=64个line，block_idx不要超过64=0x3F
-            LSU_2_dcache_coreReq coreReq=LSU_2_dcache_coreReq(Read,0,random(0,31),2*i,0x1f,p_addr,p_mask);
-            coreReq_stimuli.push_back(coreReq);
-            coreReq=LSU_2_dcache_coreReq(Write,0,random(0,31),2*i+1,0x1f,p_addr,p_mask);
-            coreReq_stimuli.push_back(coreReq);
-        }
-    }*/
+    void DEBUG_waveform_title(std::ofstream& waveform){
+        waveform << "cReq_v,cReq_op,cReq_type,cReq_wid,cReq_id,cReq_block_idx,cReq_block_offset_0,cReq_mask_0,cReq_mask_1,cReq_data_0" << "," ;
+        waveform << "cRsp_v,cRsp_wid,cRsp_id,cRsp_mask,cRsp_wxd,cRsp_data_0" << ",";
+        waveform << "d_v,d_op,d_source,d_mask_0,d_mask_1,d_data_0" << ",";
+        waveform << "a_v,a_op,a_param,a_source,a_addr,a_mask_0,a_mask_1,a_data" << std::endl;
+//        
+        waveform << std::endl;
+    }
+
+    void DEBUG_waveform_a_cycle(std::ofstream& waveform){
+        dcache.DEBUG_waveform_a_cycle(waveform);
+    }
 
     l1_data_cache dcache;
 private:
     //std::deque<LSU_2_dcache_coreReq> coreReq_stimuli;
     DEBUG_L2_model L2;
-    int verbose_level=1;
-
     /*
     verbose_level = 0: 无任何打印信息
     verbose_level = 1: 重要打印信息
     verbose_level = 2: 主要
     */
+    int verbose_level=1;
+    bool m_dump_csv=true;
 };
 
 int main(int argc, char *argv[]) {
@@ -377,8 +391,13 @@ int main(int argc, char *argv[]) {
     }
 
     std::cout << "modeling cache now" << std::endl;
-    test_env tb(2);
+    bool dump_csv = true;
+    test_env tb(2,dump_csv);
     tb.print_config_summary();
+    std::ofstream waveform("test_result.csv");
+    if (dump_csv){
+        tb.DEBUG_waveform_title(waveform);
+    }
     //tb.dcache.m_tag_array.DEBUG_random_initialize(100);
     //tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
 
@@ -392,11 +411,16 @@ int main(int argc, char *argv[]) {
         ++i;
     }*/
     for (int i = 100 ; i < 120 ; ++i){
-        tb.DEBUG_cycle(i,infile);
+        if (dump_csv){
+            tb.DEBUG_cycle(i,infile,waveform);
+        }else{
+            tb.DEBUG_cycle(i,infile);
+        }
     }
     
     tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
 
+    waveform.close();
     infile.close();
     return 0;
 }

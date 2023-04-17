@@ -80,6 +80,13 @@ public:
         }
     }
 
+    void DEBUG_waveform_a_cycle(std::ofstream& waveform_file){
+        
+    }
+
+    void DEBUG_visualize_coreReq_a_cycle(){
+
+    }
 public:
     coreReq_pipe_reg m_coreReq;
     coreReq_pipe_reg m_coreReq_pipe1_reg;//pipe1和2之间的流水线寄存器
