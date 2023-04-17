@@ -353,7 +353,7 @@ public:
 
     void DEBUG_waveform_title(std::ofstream& waveform){
         waveform << "cReq_v,cReq_op,cReq_type,cReq_wid,cReq_id,cReq_block_idx,cReq_block_offset_0,cReq_mask_0,cReq_mask_1,cReq_data_0" << "," ;
-        waveform << "cRsp_v,cRsp_wid,cRsp_id,cRsp_mask,cRsp_wxd,cRsp_data_0" << ",";
+        waveform << "cRsp_v,cRsp_wid,cRsp_id,cRsp_mask_0,cRsp_wxd,cRsp_data_0" << ",";
         waveform << "d_v,d_op,d_source,d_mask_0,d_mask_1,d_data_0" << ",";
         waveform << "a_v,a_op,a_param,a_source,a_addr,a_mask_0,a_mask_1,a_data" << std::endl;
     }
