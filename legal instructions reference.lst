@@ -26,16 +26,16 @@ sc.w x10,x8,0(x7)       //把x8写入地址x7+0，如果成功，向x10写0，�
 
 // **** RV32A AMO ****
 amoswap.w x7,x0,(x8)    //原子性地把地址x8的值写入x7，并把x0写入地址x8
-amoswap.w.aq
-amoswap.w.aq.rl
-amoadd.w
-amoxor.w
-amoand.w
-amoor.w
-amomin.w
-amomax.w
-amominu.w
-amomaxu.w
+//amoswap.w.aq
+//amoswap.w.aq.rl
+//amoadd.w
+//amoxor.w
+//amoand.w
+//amoor.w
+//amomin.w
+//amomax.w
+//amominu.w
+//amomaxu.w
 
 //consistency测试不支持向量
 // **** RV32V load ****

@@ -192,7 +192,7 @@ public:
             }
             coreReq_wid = random(0,31);
             coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
-            coreReq_block_idx = std::stoi(reg_imm_fields[1]);
+            coreReq_block_idx = cast_addr_to_int(reg_imm_fields[1]);
             if(opcode == "lb" || opcode == "lh" || opcode == "lw" || opcode == "lr.w"){
                 p_addr[0] = 0x0;
                 p_mask[0] = true;
@@ -209,16 +209,74 @@ public:
                 std::cout <<"周期"<< time << "，Load, op = " << opcode << std::endl;
             }
         }else if(opcode == "sb" || opcode == "sh" || opcode == "sw" || 
-        opcode == "sc.w" || opcode == "vse32.v" || opcode == "vsse32.v" || 
-        opcode == "vsuxe32.v" || opcode == "vsoxe32.v"){
+        opcode == "sc.w" || opcode == "vse32.v" ){//|| opcode == "vsse32.v" || 
+        //opcode == "vsuxe32.v" || opcode == "vsoxe32.v"){
+            coreReq_opcode = Write;
+            if (opcode == "sc.w"){
+                coreReq_type = 1;
+            }else{
+                coreReq_type = 0;
+            }
+            coreReq_wid = random(0,31);
+            if(opcode == "sc.w"){
+                coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
+                coreReq_block_idx = cast_addr_to_int(reg_imm_fields[2]);
+                reg_imm_fields[0] = reg_imm_fields[1];//data
+            }else{
+                coreReq_id = -1;
+                coreReq_block_idx = cast_addr_to_int(reg_imm_fields[1]);
+            }
+            
+            if(opcode == "sb" || opcode == "sh" || opcode == "sw" || opcode == "sc.w"){
+                p_addr[0] = 0x0;
+                p_mask[0] = true;
+                p_data[0] = std::stoi(reg_imm_fields[0]);
+            }else{
+                if(opcode == "vse32.v"){
+                    u_int32_t data_base = std::stoi(reg_imm_fields[0]);
+                    for(int i = 0;i<NLANE;++i){
+                        p_addr[i] = i;
+                        p_data[i] = data_base + i;//不通用，仅用于测试
+                    }
+                    p_mask.fill(true);
+                }
+            }
+
             if(verbose_level>=2){
                 std::cout <<"周期"<< time << "，Store, op = " << opcode << std::endl;
             }
         }else if(opcode == "fence"){
+            std::string t0 = reg_imm_fields[0];
+            std::string t1 = reg_imm_fields[1];
+            coreReq_opcode = InvOrFlu;
+            coreReq_wid = random(0,31);
+            if ((t0=="r"&&t1=="r") || (t0=="r"&&t1=="rw") || (t0=="w"&&t1=="r") ||
+            (t0=="w"&&t1=="rw") || (t0=="rw"&&t1=="r") || (t0=="rw"&&t1=="rw")){
+                coreReq_type = 0x0;
+            }else if((t0=="w"&&t1=="w") || (t0=="rw"&&t1=="w")){
+                coreReq_type = 0x1;
+            }else if((t0=="r"&&t1=="w")){
+                coreReq_type = 0x2;
+            }else{
+                if(verbose_level>=2){
+                    std::cout <<"周期"<< time << "，非法FENCE： " << instruction << std::endl;
+                }
+            }
+
             if(verbose_level>=2){
                 std::cout <<"周期"<< time << "，Fence, op = " << opcode << std::endl;
             }
         }else if(opcode[0] == 'a' && opcode[1] == 'm' && opcode[2] == 'o'){
+            coreReq_opcode = Amo;
+            coreReq_type = amoswap;//不通用，仅用于测试
+            coreReq_wid = random(0,31);
+            coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
+            coreReq_block_idx = cast_addr_to_int(reg_imm_fields[1]);
+            if(opcode == "lb" || opcode == "lh" || opcode == "lw" || opcode == "lr.w"){
+                p_addr[0] = 0x0;
+                p_mask[0] = true;
+            }
+
             if(verbose_level>=2){
                 std::cout <<"周期"<< time << "，AMO, op = " << opcode << std::endl;
             }
@@ -245,6 +303,14 @@ public:
         assert(reg_idx[0]=='x' || reg_idx[0]=='v');
         std::string number = reg_idx.substr(1);
         return std::stoi(number);
+    }
+
+    //输入：括号中的地址
+    int cast_addr_to_int(std::string addr_in_bracket) {
+        assert(addr_in_bracket.front() == '(' && addr_in_bracket.back() == ')');
+        addr_in_bracket = addr_in_bracket.substr(1);
+        addr_in_bracket = addr_in_bracket.substr(0, addr_in_bracket.size() - 1);
+        return std::stoi(addr_in_bracket);
     }
 
     //TODO 丰富这个函数的个数，创造更多测试
