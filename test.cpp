@@ -261,6 +261,7 @@ public:
                 if(verbose_level>=2){
                     std::cout <<"周期"<< time << "，非法FENCE： " << instruction << std::endl;
                 }
+                return false;
             }
 
             if(verbose_level>=2){
@@ -271,11 +272,10 @@ public:
             coreReq_type = amoswap;//不通用，仅用于测试
             coreReq_wid = random(0,31);
             coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
-            coreReq_block_idx = cast_addr_to_int(reg_imm_fields[1]);
-            if(opcode == "lb" || opcode == "lh" || opcode == "lw" || opcode == "lr.w"){
-                p_addr[0] = 0x0;
-                p_mask[0] = true;
-            }
+            coreReq_block_idx = cast_addr_to_int(reg_imm_fields[2]);
+            p_addr[0] = 0x0;
+            p_mask[0] = true;
+            p_data[0] = std::stoi(reg_imm_fields[1]);
 
             if(verbose_level>=2){
                 std::cout <<"周期"<< time << "，AMO, op = " << opcode << std::endl;
