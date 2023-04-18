@@ -1,3 +1,6 @@
+#ifndef L1_DATA_CACHE_H
+#define L1_DATA_CACHE_H
+
 #include "parameter.h"
 #include "tag_array.h"
 #include "miss_status_holding_reg.h"
@@ -471,3 +474,5 @@ void l1_data_cache::cycle(cycle_t time){
 
 
 }
+
+#endif
