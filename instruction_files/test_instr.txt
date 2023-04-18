@@ -1,0 +1,15 @@
+
+lb x5,(22)
+lh
+lw 
+
+sb 55,(22)
+sh
+sw
+
+fence rw,rw
+
+lr.w x5,(21)
+sc.w x10,55,(33)
+
+amoswap.w x7,13,(33)
