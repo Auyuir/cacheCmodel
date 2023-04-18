@@ -138,14 +138,22 @@ public:
     }
 
     //每次调用处理一个subentry。当前main entry清空时，返回true。
-    bool vec_arrange_core_rsp(coreRsp_pipe_reg& pipe_reg, block_addr_t block_idx){
+    bool vec_arrange_core_rsp(coreRsp_pipe_reg& pipe_reg, block_addr_t block_idx, cache_line_t& missRsp_line){
         assert(!pipe_reg.is_valid());
         auto& current_main = m_vec_entry[block_idx].m_sub_en;
         assert(!current_main.empty());
         auto& current_sub = current_main.front();
-        vec_nlane_t data{0};//无意义，cRsp此时不需要数据
+        vec_nlane_t coreRsp_data;
+        for(int i = 0;i<NLANE;++i){
+            if(current_sub.m_mask[i]==true){
+                coreRsp_data[i] = missRsp_line[current_sub.m_block_offset[i]];
+            }
+        }
         dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
-            current_sub.m_req_id,data,current_sub.m_wid,current_sub.m_mask);
+            current_sub.m_req_id,
+            coreRsp_data,
+            current_sub.m_wid,
+            current_sub.m_mask);
         pipe_reg.update_with(new_rsp);
         current_main.pop_front();
 

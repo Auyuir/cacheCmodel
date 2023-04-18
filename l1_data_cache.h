@@ -255,7 +255,9 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                             }
                         }
                         dcache_2_LSU_coreRsp hit_coreRsp(pipe1_r.m_reg_idxw,
-                            data, pipe1_r.m_wid, pipe1_r.m_mask);
+                            data, 
+                            pipe1_r.m_wid, 
+                            pipe1_r.m_mask);
                         m_coreRsp_pipe2_reg.update_with(hit_coreRsp);
                         pipe1_r.invalidate();
                     }
@@ -301,7 +303,9 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                             //arrange coreRsp
                             vec_nlane_t data_coreRsp{0};
                             dcache_2_LSU_coreRsp write_miss_coreRsp(pipe1_r.m_reg_idxw,
-                                data_coreRsp,pipe1_r.m_wid,pipe1_r.m_mask);
+                                data_coreRsp,
+                                pipe1_r.m_wid,
+                                pipe1_r.m_mask);
                             m_coreRsp_pipe2_reg.update_with(write_miss_coreRsp);
                             //push memReq Q
                             cache_line_t data_memReq;
@@ -355,8 +359,11 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                         if(m_mshr.empty()){
                             m_tag_array.invalidate_all();
                             if(!m_coreRsp_Q.is_full()){
-                                dcache_2_LSU_coreRsp Invalidate_coreRsp(pipe1_r.m_reg_idxw,
-                                    data,pipe1_r.m_wid,pipe1_r.m_mask);
+                                dcache_2_LSU_coreRsp Invalidate_coreRsp(
+                                    pipe1_r.m_reg_idxw,
+                                    data,
+                                    pipe1_r.m_wid,
+                                    pipe1_r.m_mask);
                                 m_coreRsp_pipe2_reg.update_with(Invalidate_coreRsp);
                                 pipe1_r.invalidate();
                             }
@@ -443,7 +450,9 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
             if(!m_mshr.current_main_0_sub(block_idx)){
                 if(!m_coreRsp_pipe2_reg.is_valid()){
                     bool main_finish = m_mshr.vec_arrange_core_rsp(
-                        m_coreRsp_pipe2_reg, block_idx);
+                        m_coreRsp_pipe2_reg,
+                        block_idx,
+                        m_memRsp_pipe1_reg.m_fill_data);
                     if(main_finish){
                         tag_req_current_missRsp_has_sent = !allocate_success;
                         current_missRsp_clear = allocate_success;

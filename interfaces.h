@@ -154,8 +154,7 @@ public:
     u_int32_t m_reg_idxw;
     std::array<bool,NLANE> m_mask;
     bool m_wxd;//indicate whether its a scalar instruction
-    vec_nlane_t m_data;//only to indicate whether there is a data transaction
-    //std::array<u_int32_t,NLINE>* a_data;
+    vec_nlane_t m_data;
 };
 
 class coreRsp_Q : cache_building_block {
