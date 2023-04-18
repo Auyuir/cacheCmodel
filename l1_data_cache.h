@@ -267,7 +267,10 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                             if (!m_memReq_Q.is_full()){
                                 //vecMSHR记录新entry
                                 vec_subentry new_vec_sub = vec_subentry(
-                                    pipe1_r.m_reg_idxw, pipe1_r.m_wid, pipe1_r.m_mask);
+                                    pipe1_r.m_reg_idxw,
+                                    pipe1_r.m_wid,
+                                    pipe1_r.m_mask,
+                                    pipe1_r.m_block_offset);
                                 m_mshr.allocate_vec_main(pipe1_block_idx, new_vec_sub);
                                 //push memReq Q
                                 cache_line_t data{0};
@@ -286,7 +289,10 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                         }else if(mshr_status == SECONDARY_AVAIL){
                             //vecMSHR在旧entry下记录新成员
                             vec_subentry new_vec_sub = vec_subentry(
-                                pipe1_r.m_reg_idxw, pipe1_r.m_wid, pipe1_r.m_mask);
+                                pipe1_r.m_reg_idxw,
+                                pipe1_r.m_wid,
+                                pipe1_r.m_mask,
+                                pipe1_r.m_block_offset);
                             m_mshr.allocate_vec_sub(pipe1_block_idx, new_vec_sub);
                             pipe1_r.invalidate();
                         }//PRIMARY_FULL和SECONDARY_FULL直接跳过
@@ -363,7 +369,7 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
                             pipe1_r.invalidate();
                         }
                     }else{
-                        assert(true && "非法InvOrFlu");
+                        assert(false && "非法InvOrFlu");
                     }
                 }
             }

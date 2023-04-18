@@ -31,16 +31,16 @@ class vec_subentry : public cache_building_block{
 public:
     vec_subentry(){}
 
-    vec_subentry(u_int32_t req_id,u_int32_t wid,std::array<bool,NLANE> mask)//,
-    //vec_nlane_t block_offset,vec_nlane_t word_offset)
-    :m_req_id(req_id), m_wid(wid), m_mask(mask){}//,
-    //m_block_offset(block_offset), m_word_offset(word_offset){}
+    vec_subentry(u_int32_t req_id, u_int32_t wid, std::array<bool,NLANE> mask,
+    vec_nlane_t block_offset)//,vec_nlane_t word_offset)
+    :m_req_id(req_id), m_wid(wid), m_mask(mask), m_block_offset(block_offset){}//,
+    // m_word_offset(word_offset){}
 private:
     u_int32_t m_req_id;
     u_int32_t m_wid;
 
     std::array<bool,NLANE> m_mask;
-    //vec_nlane_t m_block_offset;
+    vec_nlane_t m_block_offset;
     //vec_nlane_t m_word_offset;
 
 friend class special_target_info;
@@ -231,8 +231,7 @@ public:
                     return REGULAR_READ_MISS;
                 }
             }
-            std::cout << "missRsp no entry in mshr" << std::endl;
-            assert(false);
+            assert(false && "missRsp no entry in mshr" );
         }
     }
 

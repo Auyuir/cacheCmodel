@@ -71,7 +71,7 @@ public:
                     return_mask[0] = true;
                     return_data[0] = 0x0;//0x0表示成功，0x1表示失败
                 }else{
-                    assert(true && "L2处理到非法memReq请求");
+                    assert(false && "L2处理到非法memReq请求");
                 }
             }
             L2_2_dcache_memRsp new_memRsp = L2_2_dcache_memRsp(return_op,req.a_source,return_mask,return_data);
