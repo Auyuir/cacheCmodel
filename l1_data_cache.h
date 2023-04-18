@@ -3,6 +3,7 @@
 #include "miss_status_holding_reg.h"
 #include "data_array.h"
 #include "interfaces.h"
+#include <fstream>
 
 class mshr_missRsp_pipe_reg : public mshr_miss_rsp, public pipe_reg_base{
     public:
@@ -82,37 +83,35 @@ public:
 
     void DEBUG_waveform_a_cycle(std::ofstream& waveform_file){
         DEBUG_waveform_coreReq_a_cycle(waveform_file);
-        //DEBUG_waveform_coreRsp_a_cycle(waveform_file);
-        //DEBUG_waveform_memRsp_a_cycle(waveform_file);
-        //DEBUG_waveform_memReq_a_cycle(waveform_file);
+        DEBUG_waveform_coreRsp_a_cycle(waveform_file);
+        DEBUG_waveform_memRsp_a_cycle(waveform_file);
+        DEBUG_waveform_memReq_a_cycle(waveform_file);
     }
 
     void DEBUG_waveform_coreReq_a_cycle(std::ofstream& waveform_file){
         auto& o = m_coreReq;
-        std::stringstream ss;
-        ss << o.is_valid() << "," << o.m_opcode << "," << o.m_type << "," << o.m_wid << "," ;
-        waveform_file << ss.str();
-        //waveform_file << o.m_reg_idxw << o.m_block_idx << o.m_block_offset[0];
-        //waveform_file << o.m_mask[0] << o.m_mask[1] << o.m_data[0];
+        waveform_file << o.is_valid() << "," << o.m_opcode << "," << o.m_type << "," << o.m_wid << "," ;
+        waveform_file << o.m_reg_idxw << "," << o.m_block_idx << "," << o.m_block_offset[0] << ",";
+        waveform_file << o.m_mask[0] << "," << o.m_mask[1] << "," << o.m_data[0] << ",";
     }
-/*
+
     void DEBUG_waveform_coreRsp_a_cycle(std::ofstream& waveform_file){
         auto& o = m_coreRsp_Q.m_Q.front();
-        waveform_file << !m_coreRsp_Q.is_empty() << o.m_wid << o.m_reg_idxw << o.m_mask[0];
-        waveform_file << o.m_mask[0] && !o.m_mask[1] << o.m_data[0];
+        waveform_file << !m_coreRsp_Q.is_empty() << "," << o.m_wid << "," << o.m_reg_idxw << "," << o.m_mask[0] << ",";
+        waveform_file << (o.m_mask[0] && !o.m_mask[1]) << "," << o.m_data[0] << ",";
     }
 
     void DEBUG_waveform_memRsp_a_cycle(std::ofstream& waveform_file){
         auto& o = m_memRsp_Q.m_Q.back();
-        waveform_file << !m_memRsp_Q.is_empty() << o.d_opcode << o.d_source;
-        waveform_file << o.d_mask[0] << o.d_mask[1] << o.d_data[0];
+        waveform_file << !m_memRsp_Q.is_empty() << "," << o.d_opcode << "," << o.d_source << ",";
+        waveform_file << o.d_mask[0] << "," << o.d_mask[1] << "," << o.d_data[0] << ",";
     }
 
     void DEBUG_waveform_memReq_a_cycle(std::ofstream& waveform_file){
         auto& o = m_memReq_Q.m_Q.front();
-        waveform_file << !m_memReq_Q.is_empty() << o.a_opcode << o.a_param << o.a_source;
-        waveform_file << o.a_address << o.a_mask[0] << o.a_mask[1] << o.a_data[0];
-    }*/
+        waveform_file << !m_memReq_Q.is_empty() << "," << o.a_opcode << "," << o.a_param << "," << o.a_source << ",";
+        waveform_file << o.a_address << "," << o.a_mask[0] << "," << o.a_mask[1] << "," << o.a_data[0];
+    }
 public:
     coreReq_pipe_reg m_coreReq;
     coreReq_pipe_reg m_coreReq_pipe1_reg;//pipe1和2之间的流水线寄存器
