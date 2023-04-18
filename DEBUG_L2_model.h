@@ -8,7 +8,7 @@ struct DEBUG_L2_memRsp :public pipe_reg_base, public L2_2_dcache_memRsp{
 
     void update_with(L2_2_dcache_memRsp memRsp){
     d_opcode = memRsp.d_opcode;
-    d_source = memRsp.d_opcode;
+    d_source = memRsp.d_source;
     d_mask = memRsp.d_mask;
     d_data = memRsp.d_data;
     set_valid();
