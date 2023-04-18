@@ -10,6 +10,15 @@ typedef u_int32_t block_addr_t;
 
 class cache_building_block{
 public:
+
+    u_int32_t get_block_idx(u_int32_t word_addr){
+        return word_addr >> LOGB2(LINEWORDS);
+    }
+
+    u_int32_t get_block_offset(u_int32_t word_addr){
+        return ((1 << LOGB2(LINEWORDS)) - 1) & word_addr;
+    }
+
     u_int32_t get_tag(u_int32_t block_idx){
         return block_idx >> LOGB2(NSET);
     }

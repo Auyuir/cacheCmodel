@@ -82,7 +82,7 @@ struct dcache_2_L2_memReq : cache_building_block {
     dcache_2_L2_memReq(enum TL_UH_A_opcode opcode, u_int32_t param, 
     u_int32_t source_id, u_int32_t block_idx, cache_line_t data, std::array<bool,LINEWORDS> mask) 
     :a_opcode(opcode), a_param(param), a_source(source_id), a_data(data), a_mask(mask){
-        a_address = block_idx << LOGB2(NLINE*LINESIZE);
+        a_address = block_idx << LOGB2(LINEWORDS);
     }
 
     enum TL_UH_A_opcode a_opcode;
@@ -193,10 +193,9 @@ public:
 
     LSU_2_dcache_coreReq(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
         u_int32_t wid, u_int32_t req_id, u_int32_t block_idx,vec_nlane_t perLane_addr, 
-        std::array<bool,NLANE> mask,vec_nlane_t data, enum LSU_cache_coreReq_type_amo amo_type=notamo):
+        std::array<bool,NLANE> mask, vec_nlane_t data, enum LSU_cache_coreReq_type_amo amo_type=notamo):
         m_opcode(opcode), m_type(type), m_wid(wid), m_reg_idxw(req_id), m_block_idx(block_idx), 
-        m_mask(mask), m_amo_type(amo_type), m_data(data){
-        //a_data = //actually no need to model data in C
+        m_mask(mask), m_block_offset(perLane_addr), m_amo_type(amo_type), m_data(data){
     }
 
     enum LSU_cache_coreReq_opcode m_opcode;
@@ -206,10 +205,9 @@ public:
     u_int32_t m_reg_idxw;//used for coreRsp
     u_int32_t m_block_idx;
     std::array<bool,NLANE> m_mask;
-    vec_nlane_t m_block_offset;//block_offset
-    vec_nlane_t m_word_offset;//block_offset
-    vec_nlane_t m_data;//only to indicate whether there is a data transaction
-    //std::array<u_int32_t,NLINE>* a_data;
+    vec_nlane_t m_block_offset;
+    vec_nlane_t m_word_offset;
+    vec_nlane_t m_data;
 };
 
 class coreReq_pipe_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{

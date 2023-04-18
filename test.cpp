@@ -28,7 +28,7 @@ public:
 
     void print_config_summary(){
         std::cout << "**** ref L2 configuration summary ****" << std::endl;
-        print_config_summary();
+        L2.print_config_summary();
 
         std::cout << "**** cache under test configuration summary ****" << std::endl;
         std::cout << "NLANE=" << NLANE << std::endl;
@@ -121,7 +121,7 @@ public:
         uint32_t coreReq_type;
         u_int32_t coreReq_wid;
         u_int32_t coreReq_id;
-        u_int32_t coreReq_block_idx;
+        u_int32_t coreReq_word_addr;
         vec_nlane_t p_addr{};
         std::array<bool,NLANE> p_mask{};
         p_mask.fill(false);
@@ -137,13 +137,14 @@ public:
             }
             coreReq_wid = random(0,31);
             coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
-            coreReq_block_idx = cast_addr_to_int(reg_imm_fields[1]);
+            coreReq_word_addr = cast_addr_to_int(reg_imm_fields[1]);
             if(opcode == "lb" || opcode == "lh" || opcode == "lw" || opcode == "lr.w"){
-                p_addr[0] = 0x0;
+                p_addr[0] = get_block_offset(coreReq_word_addr);
                 p_mask[0] = true;
             }else{
                 if(opcode == "vle32.v"){
                     for(int i = 0;i<NLANE;++i){
+                        assert((get_block_offset(coreReq_word_addr) == 0 ) && "LSU-d$之前，向量访问需要block对齐");
                         p_addr[i] = i;
                     }
                     p_mask.fill(true);
@@ -165,11 +166,11 @@ public:
             coreReq_wid = random(0,31);
             if(opcode == "sc.w"){
                 coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
-                coreReq_block_idx = cast_addr_to_int(reg_imm_fields[2]);
+                coreReq_word_addr = cast_addr_to_int(reg_imm_fields[2]);
                 reg_imm_fields[0] = reg_imm_fields[1];//data
             }else{
                 coreReq_id = -1;
-                coreReq_block_idx = cast_addr_to_int(reg_imm_fields[1]);
+                coreReq_word_addr = cast_addr_to_int(reg_imm_fields[1]);
             }
             
             if(opcode == "sb" || opcode == "sh" || opcode == "sw" || opcode == "sc.w"){
@@ -178,6 +179,7 @@ public:
                 p_data[0] = std::stoi(reg_imm_fields[0]);
             }else{
                 if(opcode == "vse32.v"){
+                    assert((get_block_offset(coreReq_word_addr) == 0 ) && "LSU-d$之前，向量访问需要block对齐");
                     u_int32_t data_base = std::stoi(reg_imm_fields[0]);
                     for(int i = 0;i<NLANE;++i){
                         p_addr[i] = i;
@@ -217,7 +219,7 @@ public:
             coreReq_type = amoswap;//不通用，仅用于测试
             coreReq_wid = random(0,31);
             coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
-            coreReq_block_idx = cast_addr_to_int(reg_imm_fields[2]);
+            coreReq_word_addr = cast_addr_to_int(reg_imm_fields[2]);
             p_addr[0] = 0x0;
             p_mask[0] = true;
             p_data[0] = std::stoi(reg_imm_fields[1]);
@@ -231,6 +233,8 @@ public:
             }
             return false;
         }
+
+        u_int32_t coreReq_block_idx = get_block_idx(coreReq_word_addr);
 
         coreReq = LSU_2_dcache_coreReq(coreReq_opcode,
             coreReq_type,
