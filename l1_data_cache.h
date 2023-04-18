@@ -102,9 +102,13 @@ public:
     }
 
     void DEBUG_waveform_memRsp_a_cycle(std::ofstream& waveform_file){
-        auto& o = m_memRsp_Q.m_Q.back();
-        waveform_file << !m_memRsp_Q.is_empty() << "," << o.d_opcode << "," << o.d_source << ",";
-        waveform_file << o.d_mask[0] << "," << o.d_mask[1] << "," << o.d_data[0] << ",";
+        if(m_memRsp_Q.is_empty()){
+            waveform_file << "x,x,x,x,x,x,";
+        }else{
+            auto& o = m_memRsp_Q.m_Q.back();
+            waveform_file << !m_memRsp_Q.is_empty() << "," << o.d_opcode << "," << o.d_source << ",";
+            waveform_file << o.d_mask[0] << "," << o.d_mask[1] << "," << o.d_data[0] << ",";    
+        }
     }
 
     void DEBUG_waveform_memReq_a_cycle(std::ofstream& waveform_file){
