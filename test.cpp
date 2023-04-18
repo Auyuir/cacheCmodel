@@ -54,6 +54,7 @@ public:
 
     void DEBUG_cycle(cycle_t time, std::ifstream& instr_file_name, std::ofstream& waveform_file){
         DEBUG_cycle(time,instr_file_name);
+        waveform_file << time << ",";
         DEBUG_waveform_a_cycle(waveform_file);
     }
 
@@ -263,6 +264,7 @@ public:
     }
 
     void DEBUG_waveform_title(std::ofstream& waveform){
+        waveform << "cycle," ;
         waveform << "cReq_v,cReq_op,cReq_type,cReq_wid,cReq_id,cReq_block_idx,cReq_block_offset_0,cReq_mask_0,cReq_mask_1,cReq_data_0" << "," ;
         waveform << "cRsp_v,cRsp_wid,cRsp_id,cRsp_mask_0,cRsp_wxd,cRsp_data_0" << ",";
         waveform << "d_v,d_op,d_source,d_mask_0,d_mask_1,d_data_0" << ",";
@@ -324,7 +326,7 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
+    tb.dcache.m_tag_array.DEBUG_visualize_array();
 
     waveform.close();
     infile.close();

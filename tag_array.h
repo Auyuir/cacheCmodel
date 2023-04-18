@@ -126,7 +126,7 @@ public:
     void DEBUG_random_initialize(cycle_t time);
 
     //for test use only
-    void DEBUG_visualize_array(u_int32_t set_idx_start, u_int32_t set_idx_end);
+    void DEBUG_visualize_array(u_int32_t set_idx_start=0, u_int32_t set_idx_end=NSET);
 
     void DEBUG_print_title();
 
