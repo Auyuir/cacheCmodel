@@ -23,6 +23,12 @@ public:
         }
     }
 
+    DEBUG_L2_model(int verbose_level):m_DEBUG_verbose_level(verbose_level){
+        for(int i = 0;i<m_L2_data_array.size();++i){
+            m_L2_data_array[i] = i*10;
+        }
+    }
+
     bool return_Q_is_empty(){
         return m_return_Q.empty();
     }
@@ -78,8 +84,10 @@ public:
             m_process_Q[m_minimal_process_latency-1].update_with(new_memRsp);
 
             //debug info
-            std::cout << std::setw(5) << time << " | memReq";
-            std::cout << ", TLopcode=" << req.a_opcode <<std::endl;
+            if(m_DEBUG_verbose_level>=1){
+                std::cout << std::setw(5) << time << " | memReq";
+                std::cout << ", TLopcode=" << req.a_opcode <<std::endl;
+            }
         }
     }
 
@@ -104,6 +112,8 @@ private:
     std::array<DEBUG_L2_memRsp,m_minimal_process_latency> m_process_Q {};
     std::deque<L2_2_dcache_memRsp> m_return_Q;
     std::array<u_int32_t,m_L2_capacity> m_L2_data_array;
+
+    int m_DEBUG_verbose_level=1;
 };
 
 #endif

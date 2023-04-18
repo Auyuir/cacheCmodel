@@ -15,6 +15,8 @@ public:
 
     test_env(int verbose){
         verbose_level = verbose;
+        dcache = l1_data_cache(verbose);
+        L2 = DEBUG_L2_model(verbose);
     }
 
     test_env(bool dump_csv){
@@ -24,6 +26,8 @@ public:
     test_env(int verbose, bool dump_csv){
         verbose_level = verbose;
         m_dump_csv = dump_csv;
+        dcache = l1_data_cache(verbose);
+        L2 = DEBUG_L2_model(verbose);
     }
 
     void print_config_summary(){
@@ -290,12 +294,10 @@ private:
 };
 
 int main(int argc, char *argv[]) {
-
     if (argc < 2) { // 检查命令行参数是否正确
         std::cerr << "Usage: " << argv[0] << " input_file" << std::endl;
         return 1;
     }
-
     std::ifstream infile(argv[1]);
     if (!infile) { // 检查文件是否打开成功
         std::cerr << "Error: cannot open file " << argv[1] << std::endl;
@@ -303,8 +305,12 @@ int main(int argc, char *argv[]) {
     }
 
     std::cout << "modeling cache now" << std::endl;
+    //仿真参数配置
     bool dump_csv = true;
-    test_env tb(2,dump_csv);
+    int debug_info_verbose_level = 1;
+
+    //仿真环境初始化
+    test_env tb(debug_info_verbose_level,dump_csv);
     tb.print_config_summary();
     std::ofstream waveform("waveform_result.csv");
     if (dump_csv){
@@ -312,12 +318,11 @@ int main(int argc, char *argv[]) {
     }
     //tb.dcache.m_tag_array.DEBUG_random_initialize(100);
     //tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
+    if(debug_info_verbose_level>=1){
+        std::cout << std::endl << " time | event" << std::endl;
+    }
 
-    std::cout << std::endl << " time | event" << std::endl;
-    std::string instruction;
-    LSU_2_dcache_coreReq coreReq;
-    int i=0;
-
+    //仿真开始
     for (int i = 100 ; i < 120 ; ++i){
         if (dump_csv){
             tb.DEBUG_cycle(i,infile,waveform);
@@ -326,7 +331,10 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    tb.dcache.m_tag_array.DEBUG_visualize_array();
+    //仿真结束
+    if(debug_info_verbose_level>=1){
+        tb.dcache.m_tag_array.DEBUG_visualize_array();
+    }
 
     waveform.close();
     infile.close();

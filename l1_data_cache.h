@@ -25,7 +25,8 @@ class mshr_missRsp_pipe_reg : public mshr_miss_rsp, public pipe_reg_base{
 
 class l1_data_cache : public cache_building_block{
 public:
-    l1_data_cache(){}
+    l1_data_cache(){};
+    l1_data_cache(int verbose_level):m_DEBUG_verbose_level(verbose_level){};
 
     void coreReq_pipe1_cycle(cycle_t time);
 
@@ -136,6 +137,9 @@ public:
     coreRsp_Q m_coreRsp_Q;
     memReq_Q m_memReq_Q;
     memRsp_Q m_memRsp_Q;
+
+private:
+    int m_DEBUG_verbose_level=1;
 };
 
 void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
@@ -145,10 +149,11 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                 auto const coreReq_opcode = m_coreReq.m_opcode;
                 assert(coreReq_opcode<=3);
                 //debug info
-                std::cout << std::setw(5) << time << " | coreReq";
-                std::cout << ", reg_idx" << m_coreReq.m_reg_idxw ;
-                std::cout << ", opcode=" << coreReq_opcode <<std::endl;
-
+                if(m_DEBUG_verbose_level>=1){
+                    std::cout << std::setw(5) << time << " | coreReq";
+                    std::cout << ", reg_idx" << m_coreReq.m_reg_idxw ;
+                    std::cout << ", opcode=" << coreReq_opcode <<std::endl;
+                }
                 if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
                     if(m_coreReq.m_type == 1 || coreReq_opcode==Amo){//LR/SC
                         //发起对speMSHR可用性的检查
@@ -427,23 +432,27 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
         bool current_missRsp_clear = false;
         if (type == REGULAR_READ_MISS){
             bool allocate_success = true;
+            bool need_replace = false;
             if(!tag_req_current_missRsp_has_sent){
                 u_int32_t tag_replace;
-                allocate_success = m_tag_array.allocate(m_memReq_Q.is_full(), 
+                need_replace = !m_tag_array.allocate(m_memReq_Q.is_full(), 
                     tag_replace, way_replace, block_idx, time);
+                allocate_success = !need_replace || (need_replace && !m_memReq_Q.is_full());
                 if(allocate_success){
-                    u_int32_t block_addr = (tag_replace << LOGB2(NSET) + set_idx) << 2;
-                    std::array<bool,LINEWORDS> full_mask;
-                    full_mask.fill(true);
-                    dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
-                        PutFullData,
-                        0x0,
-                        0xFFFFF,
-                        block_addr,
-                        m_data_array.read(set_idx,way_replace),
-                        full_mask);
-                    m_memReq_Q.m_Q.push_back(new_dirty_back);
                     m_data_array.fill(set_idx,way_replace,m_memRsp_pipe1_reg.m_fill_data);
+                    if(need_replace){
+                        u_int32_t block_addr = (tag_replace << LOGB2(NSET) + set_idx) << 2;
+                        std::array<bool,LINEWORDS> full_mask;
+                        full_mask.fill(true);
+                        dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
+                            PutFullData,
+                            0x0,
+                            0xFFFFF,
+                            block_addr,
+                            m_data_array.read(set_idx,way_replace),
+                            full_mask);
+                        m_memReq_Q.m_Q.push_back(new_dirty_back);
+                    }
                 }
                 tag_req_current_missRsp_has_sent = true;
             }

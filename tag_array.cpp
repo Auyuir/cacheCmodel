@@ -29,12 +29,12 @@ enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx)
         u_int32_t set_idx = get_set_idx(block_idx);
         way_replacement = replace_choice(set_idx);
         auto& the_one = m_tag[set_idx][way_replacement];
-        if (the_one.is_dirty() && memReqQ_full)
-            return false;
-        the_one.allocate(get_tag(block_idx));
-        the_one.update_fill_time(time);
-        the_one.update_access_time(time);
-        return true;
+        if (!memReqQ_full){
+            the_one.allocate(get_tag(block_idx));
+            the_one.update_fill_time(time);
+            the_one.update_access_time(time);
+        }
+        return !the_one.is_dirty();
     }
 
     void tag_array::invalidate_chosen(u_int32_t set_idx,u_int32_t way_idx){

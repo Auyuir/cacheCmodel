@@ -99,7 +99,7 @@ public:
 
     void write_hit_mark_dirty(u_int32_t way_idx, u_int32_t set_idx,cycle_t time);
 
-    //返回值为0时说明当前周期由于memReq_Q阻塞而写入失败
+    //返回值为false时说明需要发生替换
     bool allocate(bool memReqQ_full, u_int32_t& tag_replacement, u_int32_t& way_replacement, u_int32_t block_idx,cycle_t time);
 
     void invalidate_chosen(u_int32_t set_idx,u_int32_t way_idx);
