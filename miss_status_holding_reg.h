@@ -242,6 +242,23 @@ public:
     bool empty(){
         return m_vec_entry.empty();
     }
+
+    void DEBUG_visualize_array(){
+        DEBUG_print_title();
+        if (m_vec_entry.size()==0){
+            std::cout << "MSHR is empty" << std::endl;
+        }else{
+            for (const auto& main_entry : m_vec_entry){   
+                std::cout << std::setw(9) << main_entry.first << " |";
+                std::cout << std::setw(3) << main_entry.second.m_req_id << " |";
+                std::cout << std::setw(2) << main_entry.second.m_sub_en.size() << std::endl;
+            }
+        }
+    }
+
+    void DEBUG_print_title(){
+        std::cout << "block_addr | id | sub_count " << std::endl;
+    }
     
     private:
 
