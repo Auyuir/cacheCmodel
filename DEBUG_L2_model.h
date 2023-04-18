@@ -53,7 +53,7 @@ public:
             cache_line_t return_data{};
             std::array<bool,LINEWORDS> return_mask{};
             if(req.a_opcode == PutFullData || (req.a_opcode == PutPartialData && req.a_param == 0x0)){
-                return_op = AccessAck;//常规写入确实、替换写回、冲刷
+                return_op = AccessAck;//常规写入缺失、替换写回、冲刷
             }else{
                 return_op = AccessAckData;
                 if (req.a_opcode == Get){//常规读出缺失

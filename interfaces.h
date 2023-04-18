@@ -221,6 +221,7 @@ class coreReq_pipe_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
         m_reg_idxw=coreReq.m_reg_idxw;
         m_block_idx=coreReq.m_block_idx;
         m_mask=coreReq.m_mask;
+        m_block_offset=coreReq.m_block_offset;
         m_amo_type=coreReq.m_amo_type;
         m_data=coreReq.m_data;
         set_valid();
