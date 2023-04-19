@@ -28,17 +28,17 @@ public:
     l1_data_cache(){};
     l1_data_cache(int verbose_level):m_DEBUG_verbose_level(verbose_level){};
 
-    void coreReq_pipe1_cycle(cycle_t time);
+    void coreReq_pipe0_cycle(cycle_t time);
 
     //cache主体周期，产生道路分歧
-    void coreReq_pipe2_cycle(cycle_t time);
+    void coreReq_pipe1_cycle(cycle_t time);
 
     //coreReq-coreRsp hit时，从data SRAM到coreRsp_Q
-    void coreReq_pipe3_cycle();
+    void coreRsp_pipe2_cycle();
+
+    void memRsp_pipe0_cycle(cycle_t time);
 
     void memRsp_pipe1_cycle(cycle_t time);
-
-    void memRsp_pipe2_cycle(cycle_t time);
 
     void cycle(cycle_t time);
 
@@ -142,7 +142,7 @@ private:
     int m_DEBUG_verbose_level=1;
 };
 
-void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
+void l1_data_cache::coreReq_pipe0_cycle(cycle_t time){
     if(m_memRsp_Q.m_Q.size() == 0){
         if(m_coreReq.is_valid()){
             if(!m_coreReq_pipe1_reg.is_valid()){
@@ -169,7 +169,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
     }
 }
 
-void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
+void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
     auto& pipe1_r = m_coreReq_pipe1_reg;
     if(pipe1_r.is_valid() && !m_memRsp_pipe1_reg.is_valid()){
         auto const pipe1_opcode = pipe1_r.m_opcode;
@@ -392,7 +392,7 @@ void l1_data_cache::coreReq_pipe2_cycle(cycle_t time){
     //不清除pipe_r_ptr，下个周期再处理一回
 }
 
-void l1_data_cache::coreReq_pipe3_cycle(){
+void l1_data_cache::coreRsp_pipe2_cycle(){
     if(m_coreRsp_pipe2_reg.is_valid()){
         if(!m_coreRsp_Q.is_full()){
             m_coreRsp_Q.m_Q.push_back(m_coreRsp_pipe2_reg);
@@ -401,7 +401,7 @@ void l1_data_cache::coreReq_pipe3_cycle(){
     }
 }
 
-void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
+void l1_data_cache::memRsp_pipe0_cycle(cycle_t time){
     if(m_memRsp_Q.m_Q.size() != 0){
         if(!m_memRsp_pipe1_reg.is_valid()){
             if(m_memRsp_Q.m_Q.front().d_opcode == AccessAckData){
@@ -422,7 +422,7 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
     }
 }
 
-void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
+void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
     if(m_memRsp_pipe1_reg.is_valid()){
         auto& type = m_memRsp_pipe1_reg.m_type;
         auto& block_idx = m_memRsp_pipe1_reg.m_block_idx;
@@ -488,15 +488,13 @@ void l1_data_cache::memRsp_pipe2_cycle(cycle_t time){
 
 void l1_data_cache::cycle(cycle_t time){
 
-    coreReq_pipe3_cycle();
+    coreRsp_pipe2_cycle();
 
-    coreReq_pipe2_cycle(time);//coreReq pipe2必须在memRsp之前，因为memRsp优先级高
-    memRsp_pipe2_cycle(time);
+    coreReq_pipe1_cycle(time);//coreReq pipe2必须在memRsp之前，因为memRsp优先级高
+    memRsp_pipe1_cycle(time);
 
-    coreReq_pipe1_cycle(time);//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之前运行
-    memRsp_pipe1_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
-
-
+    coreReq_pipe0_cycle(time);//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之前运行
+    memRsp_pipe0_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
 }
 
 #endif
