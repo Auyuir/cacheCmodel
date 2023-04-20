@@ -1,0 +1,4 @@
+lw x5,(10)
+sw 88,(10)
+
+//在lw memRsp之前，sw不得memReq
