@@ -177,6 +177,7 @@ public:
             std::cout << ", is scalar ";
         else
             std::cout << ", is vector ";
+        std::cout << std::endl;
         ++DEBUG_print_number;
     }
 

@@ -50,7 +50,9 @@ public:
 
     void DEBUG_print_coreRsp_pop(cycle_t time){
         if (dcache.m_coreRsp_Q.m_Q.size() != 0){
-            dcache.m_coreRsp_Q.DEBUG_print(time);
+            if(verbose_level>=1){
+                dcache.m_coreRsp_Q.DEBUG_print(time);
+            }
             dcache.m_coreRsp_Q.m_Q.pop_front();
         }
         //dcache.m_coreRsp_ready = true;
