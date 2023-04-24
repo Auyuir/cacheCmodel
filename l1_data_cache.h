@@ -163,10 +163,10 @@ void l1_data_cache::coreReq_pipe0_cycle(cycle_t time){
                 }
                 if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
                     if(m_coreReq.m_type == 1 || coreReq_opcode==Amo){//LR/SC
-                        //发起对speMSHR可用性的检查
+                        m_mshr.probe_spe_in(coreReq_opcode==Write);//输入是“is_store_conditional”
                     }else{//regular R/W
                         m_tag_array.probe_in(m_coreReq.m_block_idx);
-                        //同步发起vecMSHR probe
+                        m_mshr.probe_vec_in(m_coreReq.m_block_idx);
                     }
                 }//else: flush or invalidate
                 m_coreReq_pipe1_reg = m_coreReq;
@@ -204,7 +204,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                     new_mReq_param = 0x1;
                 }
                 //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
-                if (m_mshr.probe_spe(new_spe_type) == AVAIL){
+                if (m_mshr.probe_spe_out() == AVAIL){
                     u_int32_t tag_evict;
                     u_int32_t way_evict;
                     const u_int32_t set_idx = get_set_idx(pipe1_block_idx);
@@ -218,7 +218,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                             dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
                                 PutFullData, 
                                 0x0, 
-                                0xFFFFF, 
+                                0xFFFFF, //TODO这里要加WSHR
                                 block_addr,
                                 m_data_array.read(set_idx,way_evict),//TODO这里data_array不能在这个周期完成
                                 full_mask);
@@ -276,7 +276,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                     assert((status == MISS) && "cReq st1 tag状态既不H也不M");
                     if(pipe1_opcode==Read){
                         //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
-                        enum vec_mshr_status mshr_status = m_mshr.probe_vec(pipe1_block_idx);
+                        enum vec_mshr_status mshr_status = m_mshr.probe_vec_out();
                         if (mshr_status == PRIMARY_AVAIL){
                             if (!m_memReq_Q.is_full()){
                                 //vecMSHR记录新entry

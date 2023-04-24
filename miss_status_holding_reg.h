@@ -165,41 +165,49 @@ public:
         return false;
     }
 
-    enum vec_mshr_status probe_vec(block_addr_t block_idx){
+    void probe_vec_in(block_addr_t block_idx){
         if(is_primary_miss(block_idx)){
             assert(m_vec_entry.size() <= N_MSHR_ENTRY);
             if(m_vec_entry.size() == N_MSHR_ENTRY){
-                return PRIMARY_FULL;
+                m_vec_probe_status_reg = PRIMARY_FULL;
                 //std::cout << "primary miss + main entry full at " << time << std::endl;//TODO: 分级debug info机制
             }else{
-                return PRIMARY_AVAIL;
+                m_vec_probe_status_reg = PRIMARY_AVAIL;
             }
         }else{
             assert(m_vec_entry.size() > 0);
             auto& the_main = m_vec_entry[block_idx];
             if (the_main.sub_is_full()){
-                return SECONDARY_FULL;
+                m_vec_probe_status_reg = SECONDARY_FULL;
                 //std::cout << "secondary miss + sub entry full at " << time << std::endl;
             }else{
-                return SECONDARY_AVAIL;
+                m_vec_probe_status_reg = SECONDARY_AVAIL;
             }
         }
     }
 
-    enum spe_mshr_status probe_spe(enum entry_target_type probe_type){
+    enum vec_mshr_status probe_vec_out(){
+        return m_vec_probe_status_reg;
+    }
+
+    void probe_spe_in(bool is_store_conditional){
         assert(m_special_entry.size() <= N_MSHR_SPECIAL_ENTRY);
-        if(probe_type == STORE_COND){
+        if(is_store_conditional){
             for(auto iter = m_special_entry.begin(); iter != m_special_entry.end();++iter){
                 if(iter->second.m_type == LOAD_RESRV)
-                    return FULL;
+                    m_spe_probe_status_reg = FULL;
             }
         }
         if(m_special_entry.size() == N_MSHR_SPECIAL_ENTRY){
-            return FULL;
+            m_spe_probe_status_reg = FULL;
             //std::cout << "LR/SC AMO + special entry full at " << time << std::endl;
         }else{
-            return AVAIL;
+            m_spe_probe_status_reg = AVAIL;
         }
+    }
+
+    enum spe_mshr_status probe_spe_out(){
+        return m_spe_probe_status_reg;
     }
 
     void allocate_vec_main(block_addr_t block_idx, vec_subentry& vec_sub){
@@ -272,6 +280,8 @@ public:
 
     std::map<block_addr_t,vec_entry_target_info> m_vec_entry;
     std::map<uint32_t,special_target_info> m_special_entry;
+    enum vec_mshr_status m_vec_probe_status_reg;
+    enum spe_mshr_status m_spe_probe_status_reg;
 };
 
 #endif
