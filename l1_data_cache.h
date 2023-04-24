@@ -165,7 +165,7 @@ void l1_data_cache::coreReq_pipe0_cycle(cycle_t time){
                     if(m_coreReq.m_type == 1 || coreReq_opcode==Amo){//LR/SC
                         //发起对speMSHR可用性的检查
                     }else{//regular R/W
-                        //发起tag probe
+                        m_tag_array.probe_in(m_coreReq.m_block_idx);
                         //同步发起vecMSHR probe
                     }
                 }//else: flush or invalidate
@@ -246,8 +246,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
             }else{//regular R/W
                 u_int32_t way_idx=0;//hit情况下所在的way
                 //实际硬件行为中，tag的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
-                enum tag_access_status status = 
-                    m_tag_array.probe(pipe1_block_idx,way_idx);
+                enum tag_access_status status = m_tag_array.probe_out(way_idx);
                 if (status == HIT){
                     if(!m_coreRsp_Q.is_full()){
                         u_int32_t set_idx = get_set_idx(pipe1_block_idx);
@@ -273,7 +272,8 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                         m_coreRsp_pipe2_reg.update_with(hit_coreRsp);
                         pipe1_r.invalidate();
                     }
-                }else{//status == MISS
+                }else{//
+                    assert((status == MISS) && "cReq st1 tag状态既不H也不M");
                     if(pipe1_opcode==Read){
                         //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
                         enum vec_mshr_status mshr_status = m_mshr.probe_vec(pipe1_block_idx);

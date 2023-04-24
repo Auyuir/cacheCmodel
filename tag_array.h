@@ -93,7 +93,9 @@ class tag_array : cache_building_block {
 public:
     tag_array(){}
 
-    enum tag_access_status probe(u_int32_t block_idx, u_int32_t& way_idx);
+    void probe_in(u_int32_t block_idx);
+
+    enum tag_access_status probe_out(u_int32_t& way_idx);
 
     void read_hit_update_access_time(u_int32_t way_idx, u_int32_t set_idx,cycle_t time);
 
@@ -134,6 +136,8 @@ public:
 
 private:
     std::array<std::array<meta_entry_t, NWAY>,NSET> m_tag;
+    enum tag_access_status m_probe_result_reg;
+    u_int32_t m_way_hit_reg;
 };
 
 #endif

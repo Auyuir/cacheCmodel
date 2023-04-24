@@ -1,15 +1,22 @@
 #include "tag_array.h"
 
-enum tag_access_status tag_array::probe(u_int32_t block_idx, u_int32_t& way_idx){
+//不会直接输出，而是用寄存器模拟SRAM读取周期
+void tag_array::probe_in(u_int32_t block_idx){
         u_int32_t set_idx = get_set_idx(block_idx);
         u_int32_t tag = get_tag(block_idx);
         for (int i=0;i<NWAY;++i){
             if (m_tag[set_idx][i].is_hit(tag)){
-                way_idx = i;
-                return HIT;
+                m_way_hit_reg = i;
+                m_probe_result_reg = HIT;
             }
         }
-        return MISS;
+        m_probe_result_reg = MISS;
+    }
+
+    //读寄存器返回之前probe的结果
+    enum tag_access_status tag_array::probe_out(u_int32_t& way_idx){
+        way_idx = m_way_hit_reg;
+        return m_probe_result_reg;
     }
 
     void tag_array::read_hit_update_access_time(u_int32_t set_idx,u_int32_t way_idx,cycle_t time){
