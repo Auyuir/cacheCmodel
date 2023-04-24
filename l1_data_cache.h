@@ -86,10 +86,17 @@ public:
     }
 
     void DEBUG_waveform_a_cycle(std::ofstream& waveform_file){
+        DEBUG_waveform_pipe_reg(waveform_file);
         DEBUG_waveform_coreReq_a_cycle(waveform_file);
         DEBUG_waveform_coreRsp_a_cycle(waveform_file);
         DEBUG_waveform_memRsp_a_cycle(waveform_file);
         DEBUG_waveform_memReq_a_cycle(waveform_file);
+    }
+
+    void DEBUG_waveform_pipe_reg(std::ofstream& waveform_file){
+        waveform_file << m_coreReq_pipe1_reg.is_valid() << "," << m_coreReq_pipe1_reg.m_wid << ",";
+        waveform_file << m_coreRsp_pipe2_reg.is_valid() << "," << m_coreRsp_pipe2_reg.m_wid << ",";
+        waveform_file << m_memRsp_pipe1_reg.is_valid() << "," << m_memRsp_pipe1_reg.m_req_id << ",";
     }
 
     void DEBUG_waveform_coreReq_a_cycle(std::ofstream& waveform_file){
