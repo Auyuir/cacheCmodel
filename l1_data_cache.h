@@ -470,7 +470,7 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
                         m_coreRsp_pipe2_reg,
                         block_idx,
                         m_memRsp_pipe1_reg.m_fill_data);
-                    if(main_finish){
+                    if(main_finish && !m_mshr.has_secondary_full_return()){
                         tag_req_current_missRsp_has_sent = !allocate_success;
                         current_missRsp_clear = allocate_success;
                     }
