@@ -260,7 +260,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                         }else{
                             auto data_from_array = m_data_array.read(set_idx,way_idx);
                             for(int i = 0;i<NLANE;++i){
-                                if(pipe1_r.m_mask[i]==true){
+                                if(pipe1_r.m_mask[i]==true){//mem order to core order crossbar
                                     data[i] = data_from_array[pipe1_r.m_block_offset[i]];
                                 }
                             }
@@ -322,7 +322,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                             //push memReq Q
                             cache_line_t data_memReq;
                             std::array<bool,LINEWORDS> write_miss_mask;
-                            for(int i = 0;i<NLANE;++i){
+                            for(int i = 0;i<NLANE;++i){//core order to mem order crossbar
                                 if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
                                     data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
                                     write_miss_mask[pipe1_r.m_block_offset[i]] = true;
@@ -464,6 +464,7 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
                 tag_req_current_missRsp_has_sent = true;
             }
             if(!m_mshr.current_main_0_sub(block_idx)){
+                assert(!m_mshr.has_secondary_full_return() && "MSHR违规置SECONDARY_FULL_RETURN");
                 if(!m_coreRsp_pipe2_reg.is_valid()){
                     bool main_finish = m_mshr.vec_arrange_core_rsp(
                         m_coreRsp_pipe2_reg,
@@ -473,6 +474,27 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
                         tag_req_current_missRsp_has_sent = !allocate_success;
                         current_missRsp_clear = allocate_success;
                     }
+                }
+            }else if(m_mshr.has_secondary_full_return()){
+                if(!m_coreRsp_pipe2_reg.is_valid()){
+                    auto& cReq_st1_r = m_coreReq_pipe1_reg;
+                    auto& mRsp_st1_r = m_memRsp_pipe1_reg;
+                    vec_nlane_t data;
+                    for(int i = 0;i<NLANE;++i){
+                        if(cReq_st1_r.m_mask[i]==true){//mem order to core order crossbar
+                            data[i] = mRsp_st1_r.m_fill_data[cReq_st1_r.m_block_offset[i]];
+                        }
+                    }
+                    dcache_2_LSU_coreRsp secondary_full_return_cRsp(
+                        cReq_st1_r.m_reg_idxw,
+                        data,
+                        cReq_st1_r.m_wid,
+                        cReq_st1_r.m_mask);
+                    m_coreRsp_pipe2_reg.update_with(secondary_full_return_cRsp);
+                    
+                    cReq_st1_r.invalidate();
+                    tag_req_current_missRsp_has_sent = !allocate_success;
+                    current_missRsp_clear = allocate_success;
                 }
             }else{
                 //本建模中vec_entry不会为0，因为没有建模data SRAM的多周期写入行为

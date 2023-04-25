@@ -19,8 +19,10 @@ enum vec_mshr_status{
     PRIMARY_AVAIL,
     PRIMARY_FULL,
     SECONDARY_AVAIL,
-    SECONDARY_FULL
+    SECONDARY_FULL,
+    SECONDARY_FULL_RETURN//仅用于cReq_st1，不作为probe返回结果
 };
+//出现SECONDARY_FULL_RETURN时表示当前被阻塞的cReq_st1将从mRsp_st1寄存器完成cRsp
 
 enum spe_mshr_status{
     AVAIL,
@@ -145,7 +147,7 @@ public:
         auto& current_sub = current_main.front();
         vec_nlane_t coreRsp_data;
         for(int i = 0;i<NLANE;++i){
-            if(current_sub.m_mask[i]==true){
+            if(current_sub.m_mask[i]==true){//mem order to core order crossbar
                 coreRsp_data[i] = missRsp_line[current_sub.m_block_offset[i]];
             }
         }
@@ -158,11 +160,21 @@ public:
         current_main.pop_front();
 
         if (current_main.empty()){
+            //为了让此时阻塞的coreReq可以进行
+            if(m_vec_probe_status_reg == PRIMARY_FULL){
+                m_vec_probe_status_reg = PRIMARY_AVAIL;
+            }else if(m_vec_probe_status_reg == SECONDARY_FULL){
+                m_vec_probe_status_reg = SECONDARY_FULL_RETURN;
+            }
             m_vec_entry.erase(block_idx);
             return true;
         }
         
         return false;
+    }
+
+    bool has_secondary_full_return(){
+        return m_vec_probe_status_reg == SECONDARY_FULL_RETURN;
     }
 
     void probe_vec_in(block_addr_t block_idx){
