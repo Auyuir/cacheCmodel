@@ -8,6 +8,7 @@ void tag_array::probe_in(u_int32_t block_idx){
             if (m_tag[set_idx][i].is_hit(tag)){
                 m_way_hit_reg = i;
                 m_probe_result_reg = HIT;
+                return;
             }
         }
         m_probe_result_reg = MISS;
