@@ -85,8 +85,9 @@ public:
 
             //debug info
             if(m_DEBUG_verbose_level>=1){
-                std::cout << std::setw(5) << time << " | memReq";
-                std::cout << ", TLopcode=" << req.a_opcode <<std::endl;
+                std::cout << std::setw(5) << time << " | memReq ";
+                std::cout << ", a_op=" << req.a_opcode;
+                std::cout << ", a_src=" << req.a_source << std::endl;
             }
         }
     }

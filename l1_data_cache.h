@@ -161,8 +161,9 @@ void l1_data_cache::coreReq_pipe0_cycle(cycle_t time){
                 //debug info
                 if(m_DEBUG_verbose_level>=1){
                     std::cout << std::setw(5) << time << " | coreReq";
-                    std::cout << ", reg_idx" << m_coreReq.m_reg_idxw ;
-                    std::cout << ", opcode=" << coreReq_opcode <<std::endl;
+                    std::cout << ", r_idx" << m_coreReq.m_reg_idxw ;
+                    std::cout << ", op=" << coreReq_opcode;
+                    std::cout << ", param=" << m_coreReq.m_type << std::endl;
                 }
                 if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
                     if(m_coreReq.m_type == 1 || coreReq_opcode==Amo){//LR/SC
@@ -418,8 +419,8 @@ void l1_data_cache::memRsp_pipe0_cycle(cycle_t time){
                 //在这更新WSHR
             }
             if(m_DEBUG_verbose_level>=1){
-                std::cout<< std::setw(5) << time << " | memRsp";
-                std::cout << ", req_id=" << m_memRsp_Q.m_Q.front().d_source <<std::endl;
+                std::cout<< std::setw(5) << time << " | memRsp ";
+                std::cout << ", d_src=" << m_memRsp_Q.m_Q.front().d_source <<std::endl;
             }
             m_memRsp_Q.m_Q.pop_front();
         }
