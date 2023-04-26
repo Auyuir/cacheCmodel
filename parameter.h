@@ -7,6 +7,7 @@
 
 typedef unsigned int cycle_t;
 typedef u_int32_t block_addr_t;
+typedef u_int32_t wshr_idx_t;
 
 class cache_building_block{
 public:
@@ -49,6 +50,8 @@ public:
     constexpr static u_int32_t N_MSHR_ENTRY = 4;
     constexpr static u_int32_t N_MSHR_SUBENTRY = 2;//4;
     constexpr static u_int32_t N_MSHR_SPECIAL_ENTRY = 4;
+
+    constexpr static u_int32_t N_WSHR_ENTRY = 4;
 
     typedef std::array<u_int32_t,NLANE> vec_nlane_t;
 

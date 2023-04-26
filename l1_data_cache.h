@@ -5,6 +5,7 @@
 #include "tag_array.h"
 #include "miss_status_holding_reg.h"
 #include "data_array.h"
+#include "write_status_holding_reg.h"
 #include "interfaces.h"
 #include <fstream>
 
@@ -144,6 +145,7 @@ public:
     tag_array m_tag_array;
     mshr m_mshr;
     data_array m_data_array;
+    wshr m_wshr;
     coreRsp_Q m_coreRsp_Q;
     memReq_Q m_memReq_Q;
     memRsp_Q m_memRsp_Q;
@@ -328,7 +330,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                             dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
                                 PutPartialData, 
                                 0x0,
-                                pipe1_r.m_reg_idxw,
+                                pipe1_r.m_reg_idxw,//在出队后重新赋值
                                 pipe1_block_idx,
                                 data_memReq,
                                 write_miss_mask);
