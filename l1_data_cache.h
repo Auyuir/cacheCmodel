@@ -314,14 +314,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                             pipe1_r.invalidate();
                         }//PRIMARY_FULL和SECONDARY_FULL直接跳过
                     }else{//Write (write no allocation when miss)
-                        if (!m_memReq_Q.is_full() && !m_coreRsp_Q.is_full()){
-                            //arrange coreRsp
-                            vec_nlane_t data_coreRsp{0};
-                            dcache_2_LSU_coreRsp write_miss_coreRsp(pipe1_r.m_reg_idxw,
-                                data_coreRsp,
-                                pipe1_r.m_wid,
-                                pipe1_r.m_mask);
-                            m_coreRsp_pipe2_reg.update_with(write_miss_coreRsp);
+                        if (!m_memReq_Q.is_full()){//&& !m_coreRsp_Q.is_full()){
                             //push memReq Q
                             cache_line_t data_memReq;
                             std::array<bool,LINEWORDS> write_miss_mask;
@@ -528,14 +521,27 @@ void l1_data_cache::memReq_pipe2_cycle(){
         bool is_read = (op == Get) && (mReq.a_param == 0);
         bool mshr_protect = false;
         bool wshr_protect = false;
+        bool coreRsp_blocked = false;
         if(is_write){
             //wshr_protect
             mshr_protect = m_mshr.w_s_protection_check(mReq_block_addr);
+            coreRsp_blocked = m_coreRsp_Q.is_full();
         }else if(is_read){
             //wshr_protect
         }
         
-        if(!mshr_protect && !wshr_protect){
+        if(!mshr_protect && !wshr_protect && !coreRsp_blocked){
+            if(is_write){
+                //arrange coreRsp
+                vec_nlane_t dummy_data{0};
+                std::array<bool,NLANE> dummy_mask{false};
+                //在目前的建模中core不需要写入的返回，所以没有建模该请求的内容
+                dcache_2_LSU_coreRsp write_miss_coreRsp(99,//regidx
+                    dummy_data,
+                    0,//id
+                    dummy_mask);
+                m_coreRsp_Q.m_Q.push_back(write_miss_coreRsp);
+            }
             m_memReq_pipe3_reg.update_with(mReq);
             m_memReq_Q.m_Q.pop_front();
         }
