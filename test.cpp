@@ -69,9 +69,9 @@ public:
 
         DEBUG_print_coreRsp_pop(time);
         L2.cycle();
-        if(!dcache.m_memReq_Q.is_empty()){
-            L2.DEBUG_L2_memReq_process(dcache.m_memReq_Q.m_Q.front(), time);
-            dcache.m_memReq_Q.m_Q.pop_front();
+        if(dcache.m_memReq_pipe3_reg.is_valid()){
+            L2.DEBUG_L2_memReq_process(dcache.m_memReq_pipe3_reg, time);
+            dcache.m_memReq_pipe3_reg.invalidate();
         }
         dcache.cycle(time);
         if(!L2.return_Q_is_empty()){

@@ -253,4 +253,17 @@ class coreRsp_pipe_reg : public dcache_2_LSU_coreRsp, public pipe_reg_base{
     } */
 };
 
+class memReq_pipe_reg : public dcache_2_L2_memReq, public pipe_reg_base{
+    public:
+    memReq_pipe_reg(){}
+
+    void update_with(dcache_2_L2_memReq memReq){
+        a_opcode = memReq.a_opcode;
+        a_param = memReq.a_param;
+        a_source = memReq.a_source;
+        a_address = memReq.a_address;
+        a_mask = memReq.a_mask;
+        set_valid();
+    }
+};
 #endif

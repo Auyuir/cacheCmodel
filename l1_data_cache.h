@@ -40,6 +40,8 @@ public:
 
     void memRsp_pipe1_cycle(cycle_t time);
 
+    void memReq_pipe2_cycle();
+
     void cycle(cycle_t time);
 
     void cast_amo_LSU_type_2_TLUH_param(enum LSU_cache_coreReq_type_amo coreReq_type, 
@@ -137,6 +139,7 @@ public:
     //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
     mshr_missRsp_pipe_reg m_memRsp_pipe1_reg;
     bool tag_req_current_missRsp_has_sent = false;//m_memRsp_pipe1_reg的一部分，单独控制信号
+    memReq_pipe_reg m_memReq_pipe3_reg;//m_memReq_Q出队有效且无需WSHR、MSHR保护时为真，组合逻辑
 
     tag_array m_tag_array;
     mshr m_mshr;
@@ -511,6 +514,29 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
 
         if(current_missRsp_clear){
             m_memRsp_pipe1_reg.invalidate();
+        }
+    }
+}
+
+void l1_data_cache::memReq_pipe2_cycle(){
+    if(!m_memReq_Q.is_empty() && !m_memReq_pipe3_reg.is_valid()){
+        dcache_2_L2_memReq& mReq = m_memReq_Q.m_Q.front();
+        u_int32_t mReq_block_addr = get_block_idx(mReq.a_address);
+        auto& op = mReq.a_opcode;
+        bool is_write = ((op == PutFullData) || (op == PutPartialData)) && (mReq.a_param == 0);
+        bool is_read = (op == Get) && (mReq.a_param == 0);
+        bool mshr_protect = false;
+        bool wshr_protect = false;
+        if(is_write){
+            //wshr_protect
+            mshr_protect = m_mshr.w_s_protection_check(mReq_block_addr);
+        }else if(is_read){
+            //wshr_protect
+        }
+        
+        if(!mshr_protect && !wshr_protect){
+            m_memReq_pipe3_reg.update_with(mReq);
+            m_memReq_Q.m_Q.pop_front();
         }
     }
 }
