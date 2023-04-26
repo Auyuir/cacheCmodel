@@ -424,9 +424,10 @@ void l1_data_cache::memRsp_pipe0_cycle(cycle_t time){
             }else{
                 //在这更新WSHR
             }
-            //debug info
-            //std::cout<< std::setw(5) << time << " | memRsp";
-            //std::cout << ", req_id=" << req_id <<std::endl;
+            if(m_DEBUG_verbose_level>=1){
+                std::cout<< std::setw(5) << time << " | memRsp";
+                std::cout << ", req_id=" << m_memRsp_Q.m_Q.front().d_source <<std::endl;
+            }
             m_memRsp_Q.m_Q.pop_front();
         }
     }
@@ -544,6 +545,7 @@ void l1_data_cache::memReq_pipe2_cycle(){
 void l1_data_cache::cycle(cycle_t time){
 
     coreRsp_pipe2_cycle();
+    memReq_pipe2_cycle();
 
     coreReq_pipe1_cycle(time);//coreReq pipe2必须在memRsp之前，因为memRsp优先级高
     memRsp_pipe1_cycle(time);

@@ -204,7 +204,7 @@ public:
 
     //memReq_Q 发射Wm之前检查是否有相同的Rm
     bool w_s_protection_check(block_addr_t block_idx){
-        return is_primary_miss(block_idx);
+        return !is_primary_miss(block_idx);
     }
 
     void probe_spe_in(bool is_store_conditional){
