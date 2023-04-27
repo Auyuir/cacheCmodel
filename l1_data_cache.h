@@ -226,7 +226,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                                 0x0, 
                                 0xFFFFF, 
                                 block_addr,
-                                m_data_array.read(set_idx,way_evict),//TODO这里data_array不能在这个周期完成
+                                m_data_array.read_out(),//set_idx,way_evict),//TODO这里data_array不能在这个周期完成
                                 full_mask);
                             m_memReq_Q.m_Q.push_back(new_dirty_back);
                         }else{
@@ -344,11 +344,11 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
             u_int32_t set_idx;
             u_int32_t way_idx;
             u_int32_t tag_evict;
-            if(pipe1_r.m_type == 2){
+            if(pipe1_r.m_type == 2){//WaitMSHR
                 if(m_mshr.empty()){
                     pipe1_r.invalidate();
                 }
-            }else{
+            }else{//Invalidate or Flush
                 if(m_tag_array.has_dirty(tag_evict,set_idx,way_idx)){
                     if(!m_memReq_Q.is_full()){
                         m_tag_array.flush_one(set_idx,way_idx);
@@ -360,7 +360,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                             0x0,
                             0xFFFFF,
                             block_addr,
-                            m_data_array.read(set_idx,way_idx),
+                            m_data_array.read_out(),//set_idx,way_idx),
                             full_mask);
                         m_memReq_Q.m_Q.push_back(new_dirty_back);
                     }
@@ -458,7 +458,7 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
                             0x0,
                             0xFFFFF,
                             block_addr,
-                            m_data_array.read(set_idx,way_replace),
+                            m_data_array.read_out(),//set_idx,way_replace),
                             full_mask);
                         m_memReq_Q.m_Q.push_back(new_dirty_back);
                     }

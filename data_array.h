@@ -14,6 +14,14 @@ public:
         return m_data[set_idx][way_idx];
     }
 
+    void read_in(u_int32_t set_idx,u_int32_t way_idx){
+        m_read_data_o_r = m_data[set_idx][way_idx];
+    }
+
+    cache_line_t read_out(){
+        return m_read_data_o_r;
+    }
+
     void fill(u_int32_t set_idx,u_int32_t way_idx,cache_line_t& fill_line){
         m_data[set_idx][way_idx] = fill_line;
     }
@@ -61,5 +69,6 @@ public:
 
 private:
     std::array<std::array<cache_line_t, NWAY>,NSET> m_data;
+    cache_line_t m_read_data_o_r;
 };
 #endif
