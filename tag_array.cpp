@@ -106,7 +106,6 @@ void tag_array::probe_in(u_int32_t block_idx){
     */
     u_int32_t tag_array::replace_choice(u_int32_t set_idx){
         //LRU
-        u_int32_t way_idx;
         unsigned int least_recently_time=(unsigned)-1;
         u_int32_t least_recently_idx=0;
         for (int i=0;i<NWAY;++i){

@@ -224,7 +224,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
                             dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
                                 PutFullData, 
                                 0x0, 
-                                0xFFFFF, //TODO这里要加WSHR
+                                0xFFFFF, 
                                 block_addr,
                                 m_data_array.read(set_idx,way_evict),//TODO这里data_array不能在这个周期完成
                                 full_mask);
@@ -443,6 +443,7 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
             bool need_replace = false;
             if(!tag_req_current_missRsp_has_sent){
                 u_int32_t tag_replace;
+                //在硬件中是上个周期发起allocate请求，进行time的查询。此处获得结果
                 need_replace = !m_tag_array.allocate(m_memReq_Q.is_full(), 
                     tag_replace, way_replace, block_idx, time);
                 allocate_success = !need_replace || (need_replace && !m_memReq_Q.is_full());
