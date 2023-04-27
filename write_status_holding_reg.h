@@ -7,12 +7,13 @@
 
 class wshr : public cache_building_block{
     public:
-    wshr(){}
+    wshr(){
+        m_valid.fill(false);
+    }
 
-    bool is_full(wshr_idx_t& idx){
-        for(int i=0;i<N_WSHR_ENTRY;++i){
-            if(m_valid[i]  == false){
-                idx = i;
+    bool is_full(){
+        for(const auto& v : m_valid){
+            if(v == false){
                 return false;
             }
         }
@@ -28,11 +29,20 @@ class wshr : public cache_building_block{
         return false;
     }
 
-    void enqueue(block_addr_t block_idx, wshr_idx_t idx){
+    void push(block_addr_t block_idx, wshr_idx_t& idx){
         assert(!has_conflict(block_idx));
-        assert(!m_valid[idx]);
-        m_valid[idx] = true;
-        m_entry[idx] = block_idx;
+        for(int i=0;i<N_WSHR_ENTRY;++i){
+            if(m_valid[i] == false){
+                m_valid[i] = true;
+                m_entry[i] = block_idx;
+                idx = i;
+            }
+        }
+    }
+
+    void pop(wshr_idx_t idx){
+        assert(m_valid[idx] == true);
+        m_valid[idx] = false;
     }
 
     private:

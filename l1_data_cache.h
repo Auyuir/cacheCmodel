@@ -418,7 +418,8 @@ void l1_data_cache::memRsp_pipe0_cycle(cycle_t time){
                 mshr_miss_rsp new_miss_rsp = mshr_miss_rsp(missRsp_type,req_id, block_idx);
                 m_memRsp_pipe1_reg.update_with(new_miss_rsp,m_memRsp_Q.m_Q.front().d_data);
             }else{
-                //在这更新WSHR
+                //pop wshr
+                m_wshr.pop(m_memRsp_Q.m_Q.front().d_source);
             }
             if(m_DEBUG_verbose_level>=1){
                 std::cout<< std::setw(5) << time << " | memRsp ";
@@ -524,17 +525,25 @@ void l1_data_cache::memReq_pipe2_cycle(){
         bool is_read = (op == Get) && (mReq.a_param == 0);
         bool mshr_protect = false;
         bool wshr_protect = false;
-        bool coreRsp_blocked = false;
+        bool cRsp_blocked_OR_wshr_full = false;
         if(is_write){
-            //wshr_protect
+            wshr_protect = m_wshr.has_conflict(mReq_block_addr);
             mshr_protect = m_mshr.w_s_protection_check(mReq_block_addr);
-            coreRsp_blocked = m_coreRsp_Q.is_full();
+            cRsp_blocked_OR_wshr_full = m_coreRsp_Q.is_full() || m_wshr.is_full();
         }else if(is_read){
-            //wshr_protect
+            wshr_protect = m_wshr.has_conflict(mReq_block_addr);
         }
         
-        if(!mshr_protect && !wshr_protect && !coreRsp_blocked){
+        if(!mshr_protect && !wshr_protect && !cRsp_blocked_OR_wshr_full){
+            dcache_2_L2_memReq mReq_updated = mReq;
             if(is_write){
+                //push wshr
+                wshr_idx_t wshr_idx=-1;
+                m_wshr.push(mReq_block_addr,wshr_idx);
+
+                //modify mReq
+                
+                mReq_updated.a_source = wshr_idx;
                 //arrange coreRsp
                 vec_nlane_t dummy_data{0};
                 std::array<bool,NLANE> dummy_mask{false};
@@ -545,7 +554,7 @@ void l1_data_cache::memReq_pipe2_cycle(){
                     dummy_mask);
                 m_coreRsp_Q.m_Q.push_back(write_miss_coreRsp);
             }
-            m_memReq_pipe3_reg.update_with(mReq);
+            m_memReq_pipe3_reg.update_with(mReq_updated);
             m_memReq_Q.m_Q.pop_front();
         }
     }
