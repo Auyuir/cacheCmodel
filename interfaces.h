@@ -258,6 +258,7 @@ class coreReq_pipe1_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
         set_valid();
     }
 
+    block_addr_t m_block_addr_evict_for_invORFlu;
     private:
     bool m_tag_has_dirty=false;
 };

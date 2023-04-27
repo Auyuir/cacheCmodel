@@ -51,12 +51,25 @@ void coreReq_pipe0_cycle(cycle_t time){
                         m_mshr.probe_vec_in(m_coreReq.m_block_idx);
                     }
                 }else{
-
+                    coreReq_probe_evict_for_invORFlu();
                 }
                 m_coreReq_pipe1_reg.update_with(m_coreReq);
                 m_coreReq.invalidate();
             }
         }
+    }
+}
+
+void coreReq_probe_evict_for_invORFlu(){
+    u_int32_t tag_evict;//to reg
+    u_int32_t set_idx_evict;//to reg
+    u_int32_t way_idx_evict;
+    if(m_tag_array.has_dirty(tag_evict,set_idx_evict,way_idx_evict)){
+        m_coreReq_pipe1_reg.m_block_addr_evict_for_invORFlu 
+            = (tag_evict << LOGB2(NSET) + set_idx_evict) << 2;
+        //硬件上这个read_in可能需要使用真双端SRAM的第二个R口，以避免和前序常规Rh请求的冲突
+        m_data_array.read_in(set_idx_evict,way_idx_evict);
+        m_tag_array.flush_one(set_idx_evict,way_idx_evict);
     }
 }
 
@@ -237,20 +250,19 @@ void coreReq_pipe1_invORflu(){
             pipe1_r.invalidate();
         }
     }else{//Invalidate or Flush
-        if(m_tag_array.has_dirty(tag_evict,set_idx,way_idx)){
+        if(pipe1_r.invORFlu_has_dirty()){
             if(!m_memReq_Q.is_full()){
-                m_tag_array.flush_one(set_idx,way_idx);
-                u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
                 std::array<bool,LINEWORDS> full_mask;
                 full_mask.fill(true);
-                dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
+                dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
                     PutFullData,
                     0x0,
                     0xFFFFF,
-                    block_addr,
+                    pipe1_r.m_block_addr_evict_for_invORFlu,
                     m_data_array.read_out(),//set_idx,way_idx),
                     full_mask);
                 m_memReq_Q.m_Q.push_back(new_dirty_back);
+                coreReq_probe_evict_for_invORFlu();
             }
         }else{
             vec_nlane_t data{0};
