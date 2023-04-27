@@ -227,12 +227,39 @@ class coreReq_pipe_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
         set_valid();
     }
 
-    /*coreReq_pipe_reg(enum LSU_cache_coreReq_opcode opcode, u_int32_t type, 
-        u_int32_t wid, u_int32_t req_id, u_int32_t block_idx,vec_nlane_t perLane_addr, 
-        std::array<bool,NLANE> mask, enum LSU_cache_coreReq_type_amo amo_type=notamo):
-        LSU_2_dcache_coreReq(opcode,type,wid,req_id,block_idx,perLane_addr,mask,amo_type){
+};
+
+class coreReq_pipe1_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
+    public:
+    coreReq_pipe1_reg(){}
+
+    void set_dirty_for_invORFlu(){
+        m_tag_has_dirty = true;
+    }
+
+    void unset_dirty_for_invORFlu(){
+        m_tag_has_dirty = false;
+    }
+
+    bool invORFlu_has_dirty(){
+        return m_tag_has_dirty;
+    }
+
+    void update_with(LSU_2_dcache_coreReq coreReq){
+        m_opcode=coreReq.m_opcode;
+        m_type=coreReq.m_type;
+        m_wid=coreReq.m_wid;
+        m_reg_idxw=coreReq.m_reg_idxw;
+        m_block_idx=coreReq.m_block_idx;
+        m_mask=coreReq.m_mask;
+        m_block_offset=coreReq.m_block_offset;
+        m_amo_type=coreReq.m_amo_type;
+        m_data=coreReq.m_data;
         set_valid();
-    }*/
+    }
+
+    private:
+    bool m_tag_has_dirty=false;
 };
 
 class coreRsp_pipe_reg : public dcache_2_LSU_coreRsp, public pipe_reg_base{

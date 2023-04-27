@@ -132,7 +132,7 @@ public:
     }
 public:
     coreReq_pipe_reg m_coreReq;
-    coreReq_pipe_reg m_coreReq_pipe1_reg;//pipe1和2之间的流水线寄存器
+    coreReq_pipe1_reg m_coreReq_pipe1_reg;//pipe1和2之间的流水线寄存器
     //TODO:[初版建模完成后]m_coreReq_pipe1_reg_ptr不用和coreReq相同的类型，而是定制化
     coreRsp_pipe_reg m_coreRsp_pipe2_reg;//read hit 路径/write miss路径/missRsp路径
     //该寄存器由l1_data_cache的memRsp_pipe1_cycle检查和置1，由memRsp_pipe2_cycle置0。
@@ -174,8 +174,10 @@ void l1_data_cache::coreReq_pipe0_cycle(cycle_t time){
                         m_tag_array.probe_in(m_coreReq.m_block_idx);
                         m_mshr.probe_vec_in(m_coreReq.m_block_idx);
                     }
-                }//else: flush or invalidate
-                m_coreReq_pipe1_reg = m_coreReq;
+                }else{
+
+                }
+                m_coreReq_pipe1_reg.update_with(m_coreReq);
                 m_coreReq.invalidate();
             }
         }
