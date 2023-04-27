@@ -219,61 +219,66 @@ void coreReq_pipe1_cycle(cycle_t time){
                 }
             }
         }else if(pipe1_opcode==InvOrFlu){//pipe1_opcode==InvOrFlu
-            u_int32_t set_idx;
-            u_int32_t way_idx;
-            u_int32_t tag_evict;
-            if(pipe1_r.m_type == 2){//WaitMSHR
-                if(m_mshr.empty()){
-                    pipe1_r.invalidate();
-                }
-            }else{//Invalidate or Flush
-                if(m_tag_array.has_dirty(tag_evict,set_idx,way_idx)){
-                    if(!m_memReq_Q.is_full()){
-                        m_tag_array.flush_one(set_idx,way_idx);
-                        u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
-                        std::array<bool,LINEWORDS> full_mask;
-                        full_mask.fill(true);
-                        dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
-                            PutFullData,
-                            0x0,
-                            0xFFFFF,
-                            block_addr,
-                            m_data_array.read_out(),//set_idx,way_idx),
-                            full_mask);
-                        m_memReq_Q.m_Q.push_back(new_dirty_back);
-                    }
-                }else{
-                    vec_nlane_t data{0};
-                    if(pipe1_r.m_type == 1){//Invalidate
-                        if(m_mshr.empty()){
-                            m_tag_array.invalidate_all();
-                            if(!m_coreRsp_Q.is_full()){
-                                dcache_2_LSU_coreRsp Invalidate_coreRsp(
-                                    pipe1_r.m_reg_idxw,
-                                    data,
-                                    pipe1_r.m_wid,
-                                    pipe1_r.m_mask);
-                                m_coreRsp_pipe2_reg.update_with(Invalidate_coreRsp);
-                                pipe1_r.invalidate();
-                            }
-                        }
-                    }else if(pipe1_r.m_type == 0){//Flush
-                        if(!m_coreRsp_Q.is_full()){
-                            dcache_2_LSU_coreRsp Flush_coreRsp(pipe1_r.m_reg_idxw,
-                                data,pipe1_r.m_wid,pipe1_r.m_mask);
-                            m_coreRsp_pipe2_reg.update_with(Flush_coreRsp);
-                            pipe1_r.invalidate();
-                        }
-                    }else{
-                        assert(false && "非法InvOrFlu");
-                    }
-                }
-            }
+            coreReq_pipe1_invORflu();
         }else{
             
         }
     }
     //不清除pipe_r_ptr，下个周期再处理一回
+}
+
+void coreReq_pipe1_invORflu(){
+    auto& pipe1_r = m_coreReq_pipe1_reg;
+    u_int32_t set_idx;
+    u_int32_t way_idx;
+    u_int32_t tag_evict;
+    if(pipe1_r.m_type == 2){//WaitMSHR
+        if(m_mshr.empty()){
+            pipe1_r.invalidate();
+        }
+    }else{//Invalidate or Flush
+        if(m_tag_array.has_dirty(tag_evict,set_idx,way_idx)){
+            if(!m_memReq_Q.is_full()){
+                m_tag_array.flush_one(set_idx,way_idx);
+                u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
+                std::array<bool,LINEWORDS> full_mask;
+                full_mask.fill(true);
+                dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
+                    PutFullData,
+                    0x0,
+                    0xFFFFF,
+                    block_addr,
+                    m_data_array.read_out(),//set_idx,way_idx),
+                    full_mask);
+                m_memReq_Q.m_Q.push_back(new_dirty_back);
+            }
+        }else{
+            vec_nlane_t data{0};
+            if(pipe1_r.m_type == 1){//Invalidate
+                if(m_mshr.empty()){
+                    m_tag_array.invalidate_all();
+                    if(!m_coreRsp_Q.is_full()){
+                        dcache_2_LSU_coreRsp Invalidate_coreRsp(
+                            pipe1_r.m_reg_idxw,
+                            data,
+                            pipe1_r.m_wid,
+                            pipe1_r.m_mask);
+                        m_coreRsp_pipe2_reg.update_with(Invalidate_coreRsp);
+                        pipe1_r.invalidate();
+                    }
+                }
+            }else if(pipe1_r.m_type == 0){//Flush
+                if(!m_coreRsp_Q.is_full()){
+                    dcache_2_LSU_coreRsp Flush_coreRsp(pipe1_r.m_reg_idxw,
+                        data,pipe1_r.m_wid,pipe1_r.m_mask);
+                    m_coreRsp_pipe2_reg.update_with(Flush_coreRsp);
+                    pipe1_r.invalidate();
+                }
+            }else{
+                assert(false && "非法InvOrFlu");
+            }
+        }
+    }
 }
 
 void coreRsp_pipe2_cycle(){
