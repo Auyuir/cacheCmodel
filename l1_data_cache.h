@@ -29,132 +29,8 @@ public:
     l1_data_cache(){};
     l1_data_cache(int verbose_level):m_DEBUG_verbose_level(verbose_level){};
 
-    void coreReq_pipe0_cycle(cycle_t time);
-
-    //cache主体周期，产生道路分歧
-    void coreReq_pipe1_cycle(cycle_t time);
-
-    //coreReq-coreRsp hit时，从data SRAM到coreRsp_Q
-    void coreRsp_pipe2_cycle();
-
-    void memRsp_pipe0_cycle(cycle_t time);
-
-    void memRsp_pipe1_cycle(cycle_t time);
-
-    void memReq_pipe2_cycle();
-
-    void cycle(cycle_t time);
-
-    void cast_amo_LSU_type_2_TLUH_param(enum LSU_cache_coreReq_type_amo coreReq_type, 
-    enum TL_UH_A_opcode& TL_opcode, u_int32_t& TL_param){
-        switch(coreReq_type)
-        {
-            case amoadd:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(ADD);
-                break;
-            case amoxor:
-                TL_opcode = LogicalData;
-                TL_param = u_int32_t(XOR);
-                break;
-            case amoand:
-                TL_opcode = LogicalData;
-                TL_param = u_int32_t(AND);
-                break;
-            case amoor:
-                TL_opcode = LogicalData;
-                TL_param = u_int32_t(OR);
-                break;
-            case amomin:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(MIN);
-                break;
-            case amomax:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(MAX);
-                break;
-            case amominu:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(MINU);
-                break;
-            case amomaxu:
-                TL_opcode = ArithmeticData;
-                TL_param = u_int32_t(MAXU);
-                break;
-            case amoswap:
-                TL_opcode = LogicalData;
-                TL_param = u_int32_t(SWAP);
-                break;
-        }
-    }
-
-    void DEBUG_waveform_a_cycle(std::ofstream& waveform_file){
-        DEBUG_waveform_pipe_reg(waveform_file);
-        DEBUG_waveform_coreReq_a_cycle(waveform_file);
-        DEBUG_waveform_coreRsp_a_cycle(waveform_file);
-        DEBUG_waveform_memRsp_a_cycle(waveform_file);
-        DEBUG_waveform_memReq_a_cycle(waveform_file);
-    }
-
-    void DEBUG_waveform_pipe_reg(std::ofstream& waveform_file){
-        waveform_file << m_coreReq_pipe1_reg.is_valid() << "," << m_coreReq_pipe1_reg.m_wid << ",";
-        waveform_file << m_coreRsp_pipe2_reg.is_valid() << "," << m_coreRsp_pipe2_reg.m_wid << ",";
-        waveform_file << m_memRsp_pipe1_reg.is_valid() << "," << m_memRsp_pipe1_reg.m_req_id << ",";
-    }
-
-    void DEBUG_waveform_coreReq_a_cycle(std::ofstream& waveform_file){
-        auto& o = m_coreReq;
-        waveform_file << o.is_valid() << "," << o.m_opcode << "," << o.m_type << "," << o.m_wid << "," ;
-        waveform_file << o.m_reg_idxw << "," << o.m_block_idx << "," << o.m_block_offset[0] << ",";
-        waveform_file << o.m_mask[0] << "," << o.m_mask[1] << "," << o.m_data[0] << ",";
-    }
-
-    void DEBUG_waveform_coreRsp_a_cycle(std::ofstream& waveform_file){
-        auto& o = m_coreRsp_Q.m_Q.front();
-        waveform_file << !m_coreRsp_Q.is_empty() << "," << o.m_wid << "," << o.m_reg_idxw << "," << o.m_mask[0] << ",";
-        waveform_file << (o.m_mask[0] && !o.m_mask[1]) << "," << o.m_data[0] << ",";
-    }
-
-    void DEBUG_waveform_memRsp_a_cycle(std::ofstream& waveform_file){
-        if(m_memRsp_Q.is_empty()){
-            waveform_file << "x,x,x,x,x,x,";
-        }else{
-            auto& o = m_memRsp_Q.m_Q.back();
-            waveform_file << !m_memRsp_Q.is_empty() << "," << o.d_opcode << "," << o.d_source << ",";
-            waveform_file << o.d_mask[0] << "," << o.d_mask[1] << "," << o.d_data[0] << ",";    
-        }
-    }
-
-    void DEBUG_waveform_memReq_a_cycle(std::ofstream& waveform_file){
-        auto& o = m_memReq_Q.m_Q.front();
-        waveform_file << !m_memReq_Q.is_empty() << "," << o.a_opcode << "," << o.a_param << "," << o.a_source << ",";
-        waveform_file << o.a_address << "," << o.a_mask[0] << "," << o.a_mask[1] << "," << o.a_data[0];
-    }
-public:
-    coreReq_pipe_reg m_coreReq;
-    coreReq_pipe1_reg m_coreReq_pipe1_reg;//pipe1和2之间的流水线寄存器
-    //TODO:[初版建模完成后]m_coreReq_pipe1_reg_ptr不用和coreReq相同的类型，而是定制化
-    coreRsp_pipe_reg m_coreRsp_pipe2_reg;//read hit 路径/write miss路径/missRsp路径
-    //该寄存器由l1_data_cache的memRsp_pipe1_cycle检查和置1，由memRsp_pipe2_cycle置0。
-    //如果用SRAM实现MSHR，硬件中没有这个寄存器，用SRAM的保持功能实现相应功能。
-    //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
-    mshr_missRsp_pipe_reg m_memRsp_pipe1_reg;
-    bool tag_req_current_missRsp_has_sent = false;//m_memRsp_pipe1_reg的一部分，单独控制信号
-    memReq_pipe_reg m_memReq_pipe3_reg;//m_memReq_Q出队有效且无需WSHR、MSHR保护时为真，组合逻辑
-
-    tag_array m_tag_array;
-    mshr m_mshr;
-    data_array m_data_array;
-    wshr m_wshr;
-    coreRsp_Q m_coreRsp_Q;
-    memReq_Q m_memReq_Q;
-    memRsp_Q m_memRsp_Q;
-
-private:
-    int m_DEBUG_verbose_level=1;
-};
-
-void l1_data_cache::coreReq_pipe0_cycle(cycle_t time){
+    
+void coreReq_pipe0_cycle(cycle_t time){
     if(m_memRsp_Q.m_Q.size() == 0){
         if(m_coreReq.is_valid()){
             if(!m_coreReq_pipe1_reg.is_valid()){
@@ -184,7 +60,7 @@ void l1_data_cache::coreReq_pipe0_cycle(cycle_t time){
     }
 }
 
-void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
+void coreReq_pipe1_cycle(cycle_t time){
     auto& pipe1_r = m_coreReq_pipe1_reg;
     if(pipe1_r.is_valid() && !m_memRsp_pipe1_reg.is_valid()){
         auto const pipe1_opcode = pipe1_r.m_opcode;
@@ -400,7 +276,7 @@ void l1_data_cache::coreReq_pipe1_cycle(cycle_t time){
     //不清除pipe_r_ptr，下个周期再处理一回
 }
 
-void l1_data_cache::coreRsp_pipe2_cycle(){
+void coreRsp_pipe2_cycle(){
     if(m_coreRsp_pipe2_reg.is_valid()){
         if(!m_coreRsp_Q.is_full()){
             m_coreRsp_Q.m_Q.push_back(m_coreRsp_pipe2_reg);
@@ -409,7 +285,7 @@ void l1_data_cache::coreRsp_pipe2_cycle(){
     }
 }
 
-void l1_data_cache::memRsp_pipe0_cycle(cycle_t time){
+void memRsp_pipe0_cycle(cycle_t time){
     if(m_memRsp_Q.m_Q.size() != 0){
         if(!m_memRsp_pipe1_reg.is_valid()){
             if(m_memRsp_Q.m_Q.front().d_opcode == AccessAckData){
@@ -432,7 +308,7 @@ void l1_data_cache::memRsp_pipe0_cycle(cycle_t time){
     }
 }
 
-void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
+void memRsp_pipe1_cycle(cycle_t time){
     if(m_memRsp_pipe1_reg.is_valid()){
         auto& type = m_memRsp_pipe1_reg.m_type;
         auto& block_idx = m_memRsp_pipe1_reg.m_block_idx;
@@ -519,7 +395,7 @@ void l1_data_cache::memRsp_pipe1_cycle(cycle_t time){
     }
 }
 
-void l1_data_cache::memReq_pipe2_cycle(){
+void memReq_pipe2_cycle(){
     if(!m_memReq_Q.is_empty() && !m_memReq_pipe3_reg.is_valid()){
         dcache_2_L2_memReq& mReq = m_memReq_Q.m_Q.front();
         u_int32_t mReq_block_addr = get_block_idx(mReq.a_address);
@@ -563,16 +439,126 @@ void l1_data_cache::memReq_pipe2_cycle(){
     }
 }
 
-void l1_data_cache::cycle(cycle_t time){
+void cycle(cycle_t time){
 
-    coreRsp_pipe2_cycle();
-    memReq_pipe2_cycle();
+coreRsp_pipe2_cycle();
+memReq_pipe2_cycle();
 
-    coreReq_pipe1_cycle(time);//coreReq pipe2必须在memRsp之前，因为memRsp优先级高
-    memRsp_pipe1_cycle(time);
+coreReq_pipe1_cycle(time);//coreReq pipe2必须在memRsp之前，因为memRsp优先级高
+memRsp_pipe1_cycle(time);
 
-    coreReq_pipe0_cycle(time);//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之前运行
-    memRsp_pipe0_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
+coreReq_pipe0_cycle(time);//memRsp的优先级比coreReq高，coreReq pipe1必须在memRsp pipe1之前运行
+memRsp_pipe0_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
 }
+
+    void cast_amo_LSU_type_2_TLUH_param(enum LSU_cache_coreReq_type_amo coreReq_type, 
+    enum TL_UH_A_opcode& TL_opcode, u_int32_t& TL_param){
+        switch(coreReq_type)
+        {
+            case amoadd:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(ADD);
+                break;
+            case amoxor:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(XOR);
+                break;
+            case amoand:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(AND);
+                break;
+            case amoor:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(OR);
+                break;
+            case amomin:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MIN);
+                break;
+            case amomax:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MAX);
+                break;
+            case amominu:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MINU);
+                break;
+            case amomaxu:
+                TL_opcode = ArithmeticData;
+                TL_param = u_int32_t(MAXU);
+                break;
+            case amoswap:
+                TL_opcode = LogicalData;
+                TL_param = u_int32_t(SWAP);
+                break;
+        }
+    }
+
+    void DEBUG_waveform_a_cycle(std::ofstream& waveform_file){
+        DEBUG_waveform_pipe_reg(waveform_file);
+        DEBUG_waveform_coreReq_a_cycle(waveform_file);
+        DEBUG_waveform_coreRsp_a_cycle(waveform_file);
+        DEBUG_waveform_memRsp_a_cycle(waveform_file);
+        DEBUG_waveform_memReq_a_cycle(waveform_file);
+    }
+
+    void DEBUG_waveform_pipe_reg(std::ofstream& waveform_file){
+        waveform_file << m_coreReq_pipe1_reg.is_valid() << "," << m_coreReq_pipe1_reg.m_wid << ",";
+        waveform_file << m_coreRsp_pipe2_reg.is_valid() << "," << m_coreRsp_pipe2_reg.m_wid << ",";
+        waveform_file << m_memRsp_pipe1_reg.is_valid() << "," << m_memRsp_pipe1_reg.m_req_id << ",";
+    }
+
+    void DEBUG_waveform_coreReq_a_cycle(std::ofstream& waveform_file){
+        auto& o = m_coreReq;
+        waveform_file << o.is_valid() << "," << o.m_opcode << "," << o.m_type << "," << o.m_wid << "," ;
+        waveform_file << o.m_reg_idxw << "," << o.m_block_idx << "," << o.m_block_offset[0] << ",";
+        waveform_file << o.m_mask[0] << "," << o.m_mask[1] << "," << o.m_data[0] << ",";
+    }
+
+    void DEBUG_waveform_coreRsp_a_cycle(std::ofstream& waveform_file){
+        auto& o = m_coreRsp_Q.m_Q.front();
+        waveform_file << !m_coreRsp_Q.is_empty() << "," << o.m_wid << "," << o.m_reg_idxw << "," << o.m_mask[0] << ",";
+        waveform_file << (o.m_mask[0] && !o.m_mask[1]) << "," << o.m_data[0] << ",";
+    }
+
+    void DEBUG_waveform_memRsp_a_cycle(std::ofstream& waveform_file){
+        if(m_memRsp_Q.is_empty()){
+            waveform_file << "x,x,x,x,x,x,";
+        }else{
+            auto& o = m_memRsp_Q.m_Q.back();
+            waveform_file << !m_memRsp_Q.is_empty() << "," << o.d_opcode << "," << o.d_source << ",";
+            waveform_file << o.d_mask[0] << "," << o.d_mask[1] << "," << o.d_data[0] << ",";    
+        }
+    }
+
+    void DEBUG_waveform_memReq_a_cycle(std::ofstream& waveform_file){
+        auto& o = m_memReq_Q.m_Q.front();
+        waveform_file << !m_memReq_Q.is_empty() << "," << o.a_opcode << "," << o.a_param << "," << o.a_source << ",";
+        waveform_file << o.a_address << "," << o.a_mask[0] << "," << o.a_mask[1] << "," << o.a_data[0];
+    }
+public:
+    coreReq_pipe_reg m_coreReq;
+    coreReq_pipe1_reg m_coreReq_pipe1_reg;//pipe1和2之间的流水线寄存器
+    //TODO:[初版建模完成后]m_coreReq_pipe1_reg_ptr不用和coreReq相同的类型，而是定制化
+    coreRsp_pipe_reg m_coreRsp_pipe2_reg;//read hit 路径/write miss路径/missRsp路径
+    //该寄存器由l1_data_cache的memRsp_pipe1_cycle检查和置1，由memRsp_pipe2_cycle置0。
+    //如果用SRAM实现MSHR，硬件中没有这个寄存器，用SRAM的保持功能实现相应功能。
+    //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
+    mshr_missRsp_pipe_reg m_memRsp_pipe1_reg;
+    bool tag_req_current_missRsp_has_sent = false;//m_memRsp_pipe1_reg的一部分，单独控制信号
+    memReq_pipe_reg m_memReq_pipe3_reg;//m_memReq_Q出队有效且无需WSHR、MSHR保护时为真，组合逻辑
+
+    tag_array m_tag_array;
+    mshr m_mshr;
+    data_array m_data_array;
+    wshr m_wshr;
+    coreRsp_Q m_coreRsp_Q;
+    memReq_Q m_memReq_Q;
+    memRsp_Q m_memRsp_Q;
+
+private:
+    int m_DEBUG_verbose_level=1;
+};
+
 
 #endif
