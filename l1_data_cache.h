@@ -46,6 +46,15 @@ void coreReq_pipe0_cycle(cycle_t time){
                 if (coreReq_opcode==Read || coreReq_opcode==Write || coreReq_opcode==Amo){
                     if(m_coreReq.m_type == 1 || coreReq_opcode==Amo){//LR/SC
                         m_mshr.probe_spe_in(coreReq_opcode==Write);//输入是“is_store_conditional”
+                        u_int32_t way_evict = -1;
+                        if(m_tag_array.line_is_dirty(m_coreReq.m_block_idx,way_evict)){
+                            m_coreReq_pipe1_reg.set_dirty_for_LRSCAMO();
+                            u_int32_t set_idx_evict = get_set_idx(m_coreReq.m_block_idx);
+                            m_data_array.read_in(set_idx_evict,way_evict);
+                            m_tag_array.flush_one(set_idx_evict,way_evict);
+                            m_tag_array.invalidate_chosen(set_idx_evict,way_evict);
+                        }
+
                     }else{//regular R/W
                         m_tag_array.probe_in(m_coreReq.m_block_idx);
                         m_mshr.probe_vec_in(m_coreReq.m_block_idx);
@@ -65,11 +74,14 @@ void coreReq_probe_evict_for_invORFlu(){
     u_int32_t set_idx_evict;//to reg
     u_int32_t way_idx_evict;
     if(m_tag_array.has_dirty(tag_evict,set_idx_evict,way_idx_evict)){
+        m_coreReq_pipe1_reg.set_dirty_for_invORFlu();
         m_coreReq_pipe1_reg.m_block_addr_evict_for_invORFlu 
             = (tag_evict << LOGB2(NSET) + set_idx_evict) << 2;
         //硬件上这个read_in可能需要使用真双端SRAM的第二个R口，以避免和前序常规Rh请求的冲突
         m_data_array.read_in(set_idx_evict,way_idx_evict);
         m_tag_array.flush_one(set_idx_evict,way_idx_evict);
+    }else{
+        m_coreReq_pipe1_reg.unset_dirty_for_invORFlu();
     }
 }
 
@@ -207,24 +219,20 @@ void coreReq_pipe1_LRSCAMO(){
     }
     //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
     if (m_mshr.probe_spe_out() == AVAIL){
-        u_int32_t tag_evict;
-        u_int32_t way_evict;
         const u_int32_t set_idx = get_set_idx(pipe1_block_idx);
-        bool dirty = m_tag_array.line_is_dirty(pipe1_block_idx,way_evict);
         if (!m_memReq_Q.is_full()){
-            if (dirty){
-                m_tag_array.flush_one(set_idx,way_evict);
-                u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
+            if (pipe1_r.LRSCAMO_is_dirty()){
                 std::array<bool,LINEWORDS> full_mask;
                 full_mask.fill(true);
                 dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
                     PutFullData, 
                     0x0, 
                     0xFFFFF, 
-                    block_addr,
-                    m_data_array.read_out(),//set_idx,way_evict),//TODO这里data_array不能在这个周期完成
+                    pipe1_r.m_block_idx,
+                    m_data_array.read_out(),//set_idx,way_evict),
                     full_mask);
                 m_memReq_Q.m_Q.push_back(new_dirty_back);
+                pipe1_r.unset_dirty_for_LRSCAMO();
             }else{
                 m_mshr.allocate_special(new_spe_type, 
                 pipe1_r.m_reg_idxw, pipe1_r.m_wid);
@@ -239,7 +247,6 @@ void coreReq_pipe1_LRSCAMO(){
                     data_memReq,
                     onehot_mask);
                 m_memReq_Q.m_Q.push_back(new_spe_req);
-                m_tag_array.invalidate_chosen(set_idx,way_evict);
                 pipe1_r.invalidate();
             }
             //这里在建模中一个周期向memReqQ入栈了两个值，后面还得再考虑考虑

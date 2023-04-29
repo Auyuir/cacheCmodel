@@ -245,6 +245,17 @@ class coreReq_pipe1_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
         return m_tag_has_dirty;
     }
 
+    void set_dirty_for_LRSCAMO(){
+        m_chosen_tag_is_dirty = true;
+    }
+
+    void unset_dirty_for_LRSCAMO(){
+        m_chosen_tag_is_dirty = false;
+    }
+
+    bool LRSCAMO_is_dirty(){
+        return m_chosen_tag_is_dirty;
+    }
     void update_with(LSU_2_dcache_coreReq coreReq){
         m_opcode=coreReq.m_opcode;
         m_type=coreReq.m_type;
@@ -258,9 +269,11 @@ class coreReq_pipe1_reg : public LSU_2_dcache_coreReq, public pipe_reg_base{
         set_valid();
     }
 
+    //TODO用pipe reg本身的block idx来完成
     block_addr_t m_block_addr_evict_for_invORFlu;
     private:
     bool m_tag_has_dirty=false;
+    bool m_chosen_tag_is_dirty=false;
 };
 
 class coreRsp_pipe_reg : public dcache_2_LSU_coreRsp, public pipe_reg_base{
