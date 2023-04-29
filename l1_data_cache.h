@@ -353,8 +353,7 @@ void memRsp_pipe1_cycle(cycle_t time){
             if(!tag_req_current_missRsp_has_sent){
                 u_int32_t tag_replace;
                 //在硬件中是上个周期发起allocate请求，进行time的查询。此处获得结果
-                need_replace = !m_tag_array.allocate(m_memReq_Q.is_full(), 
-                    tag_replace, way_replace, block_idx, time);
+                need_replace = !m_tag_array.need_replace(tag_replace, way_replace, block_idx);
                 allocate_success = !need_replace || (need_replace && !m_memReq_Q.is_full());
                 if(allocate_success){
                     m_data_array.fill(set_idx,way_replace,m_memRsp_pipe1_reg.m_fill_data);
@@ -367,12 +366,12 @@ void memRsp_pipe1_cycle(cycle_t time){
                             0x0,
                             0xFFFFF,
                             block_addr,
-                            m_data_array.read_out(),//set_idx,way_replace),
+                            m_data_array.read_out(),
                             full_mask);
                         m_memReq_Q.m_Q.push_back(new_dirty_back);
                     }
                 }
-                tag_req_current_missRsp_has_sent = true;
+                tag_req_current_missRsp_has_sent = allocate_success;
             }
             if(!m_mshr.current_main_0_sub(block_idx)){
                 assert(!m_mshr.has_secondary_full_return() && "MSHR违规置SECONDARY_FULL_RETURN");

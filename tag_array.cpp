@@ -33,16 +33,22 @@ void tag_array::probe_in(u_int32_t block_idx){
         the_one.update_access_time(time);
     }
 
-    bool tag_array::allocate(bool memReqQ_full, u_int32_t& tag_replacement, u_int32_t& way_replacement, u_int32_t block_idx, cycle_t time){
+    //需要替换时，返回true
+    bool tag_array::need_replace(u_int32_t& tag_replacement, u_int32_t& way_replacement, u_int32_t block_idx){
         u_int32_t set_idx = get_set_idx(block_idx);
         way_replacement = replace_choice(set_idx);
-        auto& the_one = m_tag[set_idx][way_replacement];
-        if (!memReqQ_full){
-            the_one.allocate(get_tag(block_idx));
-            the_one.update_fill_time(time);
-            the_one.update_access_time(time);
-        }
-        return !the_one.is_dirty();
+        tag_replacement = m_tag[set_idx][way_replacement].tag();
+        return m_tag[set_idx][way_replacement].is_dirty();
+    }
+
+    void tag_array::allocate(u_int32_t block_idx,u_int32_t way_idx, cycle_t time){
+        u_int32_t set_idx = get_set_idx(block_idx);
+        auto& the_one = m_tag[set_idx][way_idx];
+        assert(!the_one.is_dirty());
+        //assert !memReqQ_full
+        the_one.allocate(get_tag(block_idx));
+        the_one.update_fill_time(time);
+        the_one.update_access_time(time);
     }
 
     void tag_array::invalidate_chosen(u_int32_t set_idx,u_int32_t way_idx){
