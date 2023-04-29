@@ -79,67 +79,8 @@ void coreReq_pipe1_cycle(cycle_t time){
         auto const pipe1_opcode = pipe1_r.m_opcode;
         auto const pipe1_block_idx = pipe1_r.m_block_idx;
         if (pipe1_opcode==Read || pipe1_opcode==Write || pipe1_opcode==Amo){
-            if(pipe1_r.m_type == 1 ||//LR/SC
-            pipe1_opcode==Amo){
-                enum entry_target_type new_spe_type;
-                enum TL_UH_A_opcode new_mReq_opcode;
-                u_int32_t new_mReq_param;
-                //push spe MSHR
-                if(pipe1_opcode==Amo){
-                    new_spe_type = AMO;
-                    cast_amo_LSU_type_2_TLUH_param(pipe1_r.m_amo_type,
-                    new_mReq_opcode,new_mReq_param);
-                }
-                else if (pipe1_opcode == Read){
-                    new_spe_type = LOAD_RESRV;
-                    new_mReq_opcode = Get;
-                    new_mReq_param = 0x1;
-                }
-                else{
-                    new_spe_type = STORE_COND;
-                    new_mReq_opcode = PutFullData;
-                    new_mReq_param = 0x1;
-                }
-                //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
-                if (m_mshr.probe_spe_out() == AVAIL){
-                    u_int32_t tag_evict;
-                    u_int32_t way_evict;
-                    const u_int32_t set_idx = get_set_idx(pipe1_block_idx);
-                    bool dirty = m_tag_array.line_is_dirty(pipe1_block_idx,way_evict);
-                    if (!m_memReq_Q.is_full()){
-                        if (dirty){
-                            m_tag_array.flush_one(set_idx,way_evict);
-                            u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
-                            std::array<bool,LINEWORDS> full_mask;
-                            full_mask.fill(true);
-                            dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
-                                PutFullData, 
-                                0x0, 
-                                0xFFFFF, 
-                                block_addr,
-                                m_data_array.read_out(),//set_idx,way_evict),//TODO这里data_array不能在这个周期完成
-                                full_mask);
-                            m_memReq_Q.m_Q.push_back(new_dirty_back);
-                        }else{
-                            m_mshr.allocate_special(new_spe_type, 
-                            pipe1_r.m_reg_idxw, pipe1_r.m_wid);
-                            //push memReq_Q
-                            cache_line_t data_memReq{pipe1_r.m_data[0]};
-                            std::array<bool,LINEWORDS> onehot_mask{true};
-                            dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq(
-                                new_mReq_opcode,
-                                new_mReq_param,
-                                pipe1_r.m_reg_idxw,
-                                pipe1_block_idx,
-                                data_memReq,
-                                onehot_mask);
-                            m_memReq_Q.m_Q.push_back(new_spe_req);
-                            m_tag_array.invalidate_chosen(set_idx,way_evict);
-                            pipe1_r.invalidate();
-                        }
-                        //这里在建模中一个周期向memReqQ入栈了两个值，后面还得再考虑考虑
-                    }
-                }
+            if(pipe1_r.m_type == 1 || pipe1_opcode==Amo){
+                coreReq_pipe1_LRSCAMO();
             }else{//regular R/W
                 u_int32_t way_idx=0;//hit情况下所在的way
                 //实际硬件行为中，tag的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
@@ -238,6 +179,72 @@ void coreReq_pipe1_cycle(cycle_t time){
         }
     }
     //不清除pipe_r_ptr，下个周期再处理一回
+}
+
+void coreReq_pipe1_LRSCAMO(){
+    auto& pipe1_r = m_coreReq_pipe1_reg;
+    auto const pipe1_opcode = pipe1_r.m_opcode;
+    auto const pipe1_block_idx = pipe1_r.m_block_idx;
+
+    enum entry_target_type new_spe_type;
+    enum TL_UH_A_opcode new_mReq_opcode;
+    u_int32_t new_mReq_param;
+    //push spe MSHR
+    if(pipe1_opcode==Amo){
+        new_spe_type = AMO;
+        cast_amo_LSU_type_2_TLUH_param(pipe1_r.m_amo_type,
+        new_mReq_opcode,new_mReq_param);
+    }
+    else if (pipe1_opcode == Read){
+        new_spe_type = LOAD_RESRV;
+        new_mReq_opcode = Get;
+        new_mReq_param = 0x1;
+    }
+    else{
+        new_spe_type = STORE_COND;
+        new_mReq_opcode = PutFullData;
+        new_mReq_param = 0x1;
+    }
+    //实际硬件行为中，mshr的probe发生在pipe1_cycle，结果在pipe2_cycle取得。
+    if (m_mshr.probe_spe_out() == AVAIL){
+        u_int32_t tag_evict;
+        u_int32_t way_evict;
+        const u_int32_t set_idx = get_set_idx(pipe1_block_idx);
+        bool dirty = m_tag_array.line_is_dirty(pipe1_block_idx,way_evict);
+        if (!m_memReq_Q.is_full()){
+            if (dirty){
+                m_tag_array.flush_one(set_idx,way_evict);
+                u_int32_t block_addr = (tag_evict << LOGB2(NSET) + set_idx) << 2;
+                std::array<bool,LINEWORDS> full_mask;
+                full_mask.fill(true);
+                dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
+                    PutFullData, 
+                    0x0, 
+                    0xFFFFF, 
+                    block_addr,
+                    m_data_array.read_out(),//set_idx,way_evict),//TODO这里data_array不能在这个周期完成
+                    full_mask);
+                m_memReq_Q.m_Q.push_back(new_dirty_back);
+            }else{
+                m_mshr.allocate_special(new_spe_type, 
+                pipe1_r.m_reg_idxw, pipe1_r.m_wid);
+                //push memReq_Q
+                cache_line_t data_memReq{pipe1_r.m_data[0]};
+                std::array<bool,LINEWORDS> onehot_mask{true};
+                dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq(
+                    new_mReq_opcode,
+                    new_mReq_param,
+                    pipe1_r.m_reg_idxw,
+                    pipe1_block_idx,
+                    data_memReq,
+                    onehot_mask);
+                m_memReq_Q.m_Q.push_back(new_spe_req);
+                m_tag_array.invalidate_chosen(set_idx,way_evict);
+                pipe1_r.invalidate();
+            }
+            //这里在建模中一个周期向memReqQ入栈了两个值，后面还得再考虑考虑
+        }
+    }
 }
 
 void coreReq_pipe1_invORflu(){
