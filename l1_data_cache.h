@@ -22,6 +22,8 @@ class mshr_missRsp_pipe_reg : public mshr_miss_rsp, public pipe_reg_base{
     }
 
     cache_line_t m_fill_data;
+    //0 for no replace, 1 for replace
+    bool tag_replace_status=0;
 };
 
 class l1_data_cache : public cache_building_block{
@@ -344,20 +346,28 @@ void memRsp_pipe1_cycle(cycle_t time){
         auto& type = m_memRsp_pipe1_reg.m_type;
         auto& block_idx = m_memRsp_pipe1_reg.m_block_idx;
         u_int32_t set_idx = get_set_idx(block_idx);
-        u_int32_t way_replace;
         auto& req_id = m_memRsp_pipe1_reg.m_req_id;
         bool current_missRsp_clear = false;
         if (type == REGULAR_READ_MISS){
-            bool allocate_success = true;
-            bool need_replace = false;
+            u_int32_t tag_replace;
+            u_int32_t way_replace;
             if(!tag_req_current_missRsp_has_sent){
-                u_int32_t tag_replace;
+                bool need_replace = false;
                 //在硬件中是上个周期发起allocate请求，进行time的查询。此处获得结果
                 need_replace = !m_tag_array.need_replace(tag_replace, way_replace, block_idx);
-                allocate_success = !need_replace || (need_replace && !m_memReq_Q.is_full());
-                if(allocate_success){
-                    m_data_array.fill(set_idx,way_replace,m_memRsp_pipe1_reg.m_fill_data);
+                if(m_memRsp_pipe1_reg.tag_replace_status==0){
                     if(need_replace){
+                        m_memRsp_pipe1_reg.tag_replace_status==1;
+                        m_data_array.read_in(set_idx,way_replace);
+                    }else{
+                        m_data_array.fill(set_idx,way_replace,m_memRsp_pipe1_reg.m_fill_data);
+                        m_tag_array.allocate(block_idx,way_replace,time);
+                        tag_req_current_missRsp_has_sent = true;
+                    }
+                }else{//m_memRsp_pipe1_reg.tag_replace_status==1
+                    if(!m_memReq_Q.is_full()){
+                        m_memRsp_pipe1_reg.tag_replace_status==0;
+                        
                         u_int32_t block_addr = (tag_replace << LOGB2(NSET) + set_idx) << 2;
                         std::array<bool,LINEWORDS> full_mask;
                         full_mask.fill(true);
@@ -367,12 +377,14 @@ void memRsp_pipe1_cycle(cycle_t time){
                             0xFFFFF,
                             block_addr,
                             m_data_array.read_out(),
-                            full_mask);
+                            full_mask); 
                         m_memReq_Q.m_Q.push_back(new_dirty_back);
+                        m_tag_array.allocate(block_idx,way_replace,time);
+                        tag_req_current_missRsp_has_sent = true;
                     }
                 }
-                tag_req_current_missRsp_has_sent = allocate_success;
             }
+
             if(!m_mshr.current_main_0_sub(block_idx)){
                 assert(!m_mshr.has_secondary_full_return() && "MSHR违规置SECONDARY_FULL_RETURN");
                 if(!m_coreRsp_pipe2_reg.is_valid()){
@@ -381,8 +393,7 @@ void memRsp_pipe1_cycle(cycle_t time){
                         block_idx,
                         m_memRsp_pipe1_reg.m_fill_data);
                     if(main_finish && !m_mshr.has_secondary_full_return()){
-                        tag_req_current_missRsp_has_sent = !allocate_success;
-                        current_missRsp_clear = allocate_success;
+                        mshr_sub_clear = true;
                     }
                 }
             }else if(m_mshr.has_secondary_full_return()){
@@ -403,23 +414,24 @@ void memRsp_pipe1_cycle(cycle_t time){
                     m_coreRsp_pipe2_reg.update_with(secondary_full_return_cRsp);
                     
                     cReq_st1_r.invalidate();
-                    tag_req_current_missRsp_has_sent = !allocate_success;
-                    current_missRsp_clear = allocate_success;
+                    mshr_sub_clear = true;
                 }
             }else{
                 //本建模中vec_entry不会为0，因为没有建模data SRAM的多周期写入行为
                 //所以这条路径不会被触发
-                tag_req_current_missRsp_has_sent = !allocate_success;
-                current_missRsp_clear = allocate_success;
+                assert(false && "missRsp未启用的路径");
+                mshr_sub_clear = true;
             }
         }else{//AMO/LR/SC
             if(!m_coreRsp_pipe2_reg.is_valid()){
                 m_mshr.special_arrange_core_rsp(m_coreRsp_pipe2_reg, req_id);
-                current_missRsp_clear = true;
+                mshr_sub_clear = true;
             }
         }
 
-        if(current_missRsp_clear){
+        if(tag_req_current_missRsp_has_sent && mshr_sub_clear){
+            mshr_sub_clear = false;
+            tag_req_current_missRsp_has_sent = false;
             m_memRsp_pipe1_reg.invalidate();
         }
     }
@@ -576,6 +588,7 @@ public:
     //如果用reg实现MSHR，可以按照本模型行为设计寄存器。
     mshr_missRsp_pipe_reg m_memRsp_pipe1_reg;
     bool tag_req_current_missRsp_has_sent = false;//m_memRsp_pipe1_reg的一部分，单独控制信号
+    bool mshr_sub_clear = false;
     memReq_pipe_reg m_memReq_pipe3_reg;//m_memReq_Q出队有效且无需WSHR、MSHR保护时为真，组合逻辑
 
     tag_array m_tag_array;
