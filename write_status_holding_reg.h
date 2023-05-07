@@ -36,6 +36,7 @@ class wshr : public cache_building_block{
                 m_valid[i] = true;
                 m_entry[i] = block_idx;
                 idx = i;
+                break;
             }
         }
     }
