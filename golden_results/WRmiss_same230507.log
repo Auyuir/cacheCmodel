@@ -1,0 +1,28 @@
+modeling cache now
+**** ref L2 configuration summary ****
+最小处理周期：3
+L2容量（word）：64
+**** cache under test configuration summary ****
+NLANE=4
+NSET=4; NWAY=2
+LINEWORDS=4
+N_MSHR_ENTRY=4
+N_MSHR_SUBENTRY=2
+N_MSHR_SPECIAL_ENTRY=4
+
+ time | event
+  101 | coreReq, r_idx99, op=1, param=0
+  102 | coreReq, r_idx5, op=0, param=0
+  104 | coreRsp 0 : reg_idx99 wid 0, is vector 
+  104 | memReq , a_op=1, a_src=0
+  108 | memRsp , d_src=0
+  110 | memReq , a_op=4, a_src=5
+  114 | memRsp , d_src=5
+  117 | coreRsp 1 : reg_idx5 wid 25, is scalar 
+set_idx | way 0               | way 1               |
+        | v d --tag--- lat lft| v d --tag--- lat lft
+      0 | 0 0 11111111   0   0| 0 0 11111111   0   0|
+      1 | 0 0 11111111   0   0| 0 0 11111111   0   0|
+      2 | 1 0 00000000 115 115| 0 0 11111111   0   0|
+      3 | 0 0 11111111   0   0| 0 0 11111000   0   0|
+转置完成！
