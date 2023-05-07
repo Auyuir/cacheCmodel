@@ -296,6 +296,9 @@ private:
     bool m_dump_csv=true;
 };
 
+/*仿真中生成波形时一个周期内的信号写在同一行，
+为了波形文件的可读性，一个周期最好位于同一列
+本函数调用shell脚本对csv波形文件进行转置*/
 void shell_csv_transpose(){
     std::string command = "./csv_transpose.sh waveform_result.csv";
 
