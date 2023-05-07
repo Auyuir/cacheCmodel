@@ -354,7 +354,7 @@ void memRsp_pipe1_cycle(cycle_t time){
             if(!tag_req_current_missRsp_has_sent){
                 bool need_replace = false;
                 //在硬件中是上个周期发起allocate请求，进行time的查询。此处获得结果
-                need_replace = !m_tag_array.need_replace(tag_replace, way_replace, block_idx);
+                need_replace = m_tag_array.need_replace(tag_replace, way_replace, block_idx);
                 if(m_memRsp_pipe1_reg.tag_replace_status==0){
                     if(need_replace){
                         m_memRsp_pipe1_reg.tag_replace_status==1;
