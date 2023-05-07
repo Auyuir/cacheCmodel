@@ -176,7 +176,7 @@ public:
                 coreReq_word_addr = cast_addr_to_int(reg_imm_fields[2]);
                 reg_imm_fields[0] = reg_imm_fields[1];//data
             }else{
-                coreReq_id = 0xbeef;
+                coreReq_id = 99;
                 coreReq_word_addr = cast_addr_to_int(reg_imm_fields[1]);
             }
             
