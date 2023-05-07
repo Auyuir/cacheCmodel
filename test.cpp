@@ -176,7 +176,7 @@ public:
                 coreReq_word_addr = cast_addr_to_int(reg_imm_fields[2]);
                 reg_imm_fields[0] = reg_imm_fields[1];//data
             }else{
-                coreReq_id = -1;
+                coreReq_id = 0xbeef;
                 coreReq_word_addr = cast_addr_to_int(reg_imm_fields[1]);
             }
             
@@ -296,6 +296,17 @@ private:
     bool m_dump_csv=true;
 };
 
+void shell_csv_transpose(){
+    std::string command = "./csv_transpose.sh waveform_result.csv";
+
+    int result = system(command.c_str());
+
+    if (result != 0) {
+        std::cerr << "调用转置脚本失败！" << std::endl;
+        return;
+    }
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) { // 检查命令行参数是否正确
         std::cerr << "Usage: " << argv[0] << " input_file" << std::endl;
@@ -341,5 +352,6 @@ int main(int argc, char *argv[]) {
 
     waveform.close();
     infile.close();
+    shell_csv_transpose();
     return 0;
 }
