@@ -574,8 +574,8 @@ memRsp_pipe0_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
     }
 
     void DEBUG_waveform_memReq_a_cycle(std::ofstream& waveform_file){
-        auto& o = m_memReq_Q.m_Q.front();
-        waveform_file << !m_memReq_Q.is_empty() << "," << o.a_opcode << "," << o.a_param << "," << o.a_source << ",";
+        auto& o = m_memReq_pipe3_reg;
+        waveform_file << o.is_valid() << "," << o.a_opcode << "," << o.a_param << "," << o.a_source << ",";
         waveform_file << o.a_address << "," << o.a_mask[0] << "," << o.a_mask[1] << "," << o.a_data[0];
     }
 public:
