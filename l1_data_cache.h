@@ -40,8 +40,9 @@ void coreReq_pipe0_cycle(cycle_t time){
                 assert(coreReq_opcode<=3);
                 //debug info
                 if(m_DEBUG_verbose_level>=1){
-                    std::cout << std::setw(5) << time << " | coreReq";
-                    std::cout << ", r_idx" << m_coreReq.m_reg_idxw ;
+                    std::cout << std::setw(5) << time << " | coreReq|";
+                    std::cout << std::setw(3) << m_coreReq.m_wid <<"|   |";
+                    std::cout << " r_idx" << m_coreReq.m_reg_idxw ;
                     std::cout << ", op=" << coreReq_opcode;
                     std::cout << ", param=" << m_coreReq.m_type << std::endl;
                 }
@@ -333,8 +334,9 @@ void memRsp_pipe0_cycle(cycle_t time){
                 m_wshr.pop(m_memRsp_Q.m_Q.front().d_source);
             }
             if(m_DEBUG_verbose_level>=1){
-                std::cout<< std::setw(5) << time << " | memRsp ";
-                std::cout << ", d_src=" << m_memRsp_Q.m_Q.front().d_source <<std::endl;
+                std::cout<< std::setw(5) << time << " | memRsp |";
+                std::cout <<"   |" << std::setw(3) << m_memRsp_Q.m_Q.front().d_source;
+                std::cout << "|" <<std::endl;
             }
             m_memRsp_Q.m_Q.pop_front();
         }

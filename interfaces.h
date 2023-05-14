@@ -170,21 +170,21 @@ public:
 
     void DEBUG_print(cycle_t time){
         auto& tar = m_Q.front();
-        std::cout << std::setw(5) << time << " | coreRsp " << DEBUG_print_number;
-        std::cout << " : reg_idx" << tar.m_reg_idxw << " ";
-        std::cout << "wid " << tar.m_wid;
+        std::cout << std::setw(5) << time << " | coreRsp|";//<< DEBUG_print_number;
+        std::cout << std::setw(3) << tar.m_wid <<"|   |";
+        std::cout << " r_idx" << tar.m_reg_idxw;
         if (tar.m_wxd)
             std::cout << ", is scalar ";
         else
             std::cout << ", is vector ";
         std::cout << std::endl;
-        ++DEBUG_print_number;
+        //++DEBUG_print_number;
     }
 
     std::deque<dcache_2_LSU_coreRsp> m_Q;
     
 private:
-    int DEBUG_print_number=0;
+    //int DEBUG_print_number=0;
 };
 
 struct LSU_2_dcache_coreReq : cache_building_block {

@@ -336,7 +336,7 @@ int main(int argc, char *argv[]) {
     //tb.dcache.m_tag_array.DEBUG_random_initialize(100);
     //tb.dcache.m_tag_array.DEBUG_visualize_array(28,4);
     if(debug_info_verbose_level>=1){
-        std::cout << std::endl << " time | event" << std::endl;
+        std::cout << std::endl << " time | event  |wid|src|" << std::endl;
     }
 
     //仿真开始
