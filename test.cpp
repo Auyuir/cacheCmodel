@@ -181,7 +181,7 @@ public:
             }
             
             if(opcode == "sb" || opcode == "sh" || opcode == "sw" || opcode == "sc.w"){
-                p_addr[0] = 0x0;
+                p_addr[0] = get_block_offset(coreReq_word_addr);
                 p_mask[0] = true;
                 p_data[0] = std::stoi(reg_imm_fields[0]);
             }else{
@@ -227,7 +227,7 @@ public:
             coreReq_wid = random(0,31);
             coreReq_id = cast_regidx_to_int(reg_imm_fields[0]);
             coreReq_word_addr = cast_addr_to_int(reg_imm_fields[2]);
-            p_addr[0] = 0x0;
+            p_addr[0] = get_block_offset(coreReq_word_addr);
             p_mask[0] = true;
             p_data[0] = std::stoi(reg_imm_fields[1]);
 
