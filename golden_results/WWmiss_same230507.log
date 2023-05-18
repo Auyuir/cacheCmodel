@@ -10,15 +10,15 @@ N_MSHR_ENTRY=4
 N_MSHR_SUBENTRY=2
 N_MSHR_SPECIAL_ENTRY=4
 
- time | event
-  101 | coreReq, r_idx99, op=1, param=0
-  102 | coreReq, r_idx99, op=1, param=0
-  104 | coreRsp 0 : reg_idx99 wid 0, is vector 
-  104 | memReq , a_op=1, a_src=0
-  108 | memRsp , d_src=0
-  110 | coreRsp 1 : reg_idx99 wid 0, is vector 
-  110 | memReq , a_op=1, a_src=0
-  114 | memRsp , d_src=0
+ time | event  |wid|src|
+  101 | coreReq| 26|   | r_idx99, op=1, param=0
+  102 | coreReq| 25|   | r_idx99, op=1, param=0
+  104 | coreRsp|  0|   | r_idx99, is vector 
+  104 | memReq |   |  0| a_op=1
+  108 | memRsp |   |  0|
+  110 | coreRsp|  0|   | r_idx99, is vector 
+  110 | memReq |   |  0| a_op=1
+  114 | memRsp |   |  0|
 set_idx | way 0               | way 1               |
         | v d --tag--- lat lft| v d --tag--- lat lft
       0 | 0 0 11111111   0   0| 0 0 11111111   0   0|

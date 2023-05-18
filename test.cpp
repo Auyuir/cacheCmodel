@@ -340,7 +340,7 @@ int main(int argc, char *argv[]) {
     }
 
     //仿真开始
-    for (int i = 100 ; i < 120 ; ++i){
+    for (int i = 100 ; i < 130 ; ++i){
         if (dump_csv){
             tb.DEBUG_cycle(i,infile,waveform);
         }else{
