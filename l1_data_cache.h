@@ -264,6 +264,10 @@ void coreReq_pipe1_invORflu(){
     u_int32_t tag_evict;
     if(pipe1_r.m_type == 2){//WaitMSHR
         if(m_mshr.empty()){
+            vec_nlane_t data{0};
+            dcache_2_LSU_coreRsp WaitMSHR_Rsp(pipe1_r.m_reg_idxw,
+                data,pipe1_r.m_wid,pipe1_r.m_mask);
+            m_coreRsp_pipe2_reg.update_with(WaitMSHR_Rsp);
             pipe1_r.invalidate();
         }
     }else{//Invalidate or Flush
