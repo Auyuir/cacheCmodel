@@ -1,0 +1,16 @@
+lw x5,(10)
+lw x6,(14)
+
+
+
+
+
+
+sw 23,(12)
+fence w,w
+lw x7,(9)
+sw 33,(18)
+
+//这个测试先用两个Rmiss预载数据，然后对预载的缓存行Whit。
+//Flush之后，再对这个缓存行Rhit，对其他缓存行Wmiss。
+//前后两个对不同缓存行的Wmiss能论证FENCE W,W。
