@@ -3,21 +3,21 @@
 
 #include "utils.h"
 #include "parameter.h"
+#include <bitset>
 //#include "interfaces.h"
 
 class wshr : public cache_building_block{
     public:
     wshr(){
-        m_valid.fill(false);
+        m_valid.reset();
+    }
+
+    bool empty(){
+        return m_valid.none();
     }
 
     bool is_full(){
-        for(const auto& v : m_valid){
-            if(v == false){
-                return false;
-            }
-        }
-        return true;
+        return m_valid.all();
     }
 
     bool has_conflict(block_addr_t block_idx){
@@ -47,7 +47,7 @@ class wshr : public cache_building_block{
     }
 
     private:
-    std::array<bool,N_WSHR_ENTRY> m_valid;
+    std::bitset<N_WSHR_ENTRY> m_valid;
     std::array<block_addr_t,N_WSHR_ENTRY> m_entry;
 };
 
