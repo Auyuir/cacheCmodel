@@ -44,7 +44,7 @@ public:
     }
 
     void invalidate(){
-        m_valid = true;
+        m_valid = false;
     }
 
     void clear_dirty(){

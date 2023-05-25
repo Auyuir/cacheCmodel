@@ -288,7 +288,7 @@ void coreReq_pipe1_invORflu(){
             }
         }else{
             vec_nlane_t data{0};
-            if(pipe1_r.m_type == 1){//Invalidate
+            if(pipe1_r.m_type == 0){//Invalidate
                 if(m_mshr.empty() && m_wshr.empty()){
                     if(!m_coreRsp_Q.is_full()){
                         m_tag_array.invalidate_all();
@@ -301,7 +301,7 @@ void coreReq_pipe1_invORflu(){
                         pipe1_r.invalidate();
                     }
                 }
-            }else if(pipe1_r.m_type == 0){//Flush
+            }else if(pipe1_r.m_type == 1){//Flush
                 if(!m_coreRsp_Q.is_full() && m_wshr.empty()){
                     dcache_2_LSU_coreRsp Flush_coreRsp(pipe1_r.m_reg_idxw,
                         data,pipe1_r.m_wid,pipe1_r.m_mask);

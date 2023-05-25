@@ -1,0 +1,16 @@
+lw x5,(10)
+lw x6,(14)
+
+
+
+
+
+
+lw x7,(12)
+fence r,r
+lw x8,(9)
+sw 33,(9)
+
+//这个测试先用两个Rmiss预载数据，然后对预载的缓存行Rhit。
+//Invalidate之后，再对这个缓存行Rmiss和Wmiss。
+//验证FENCE R,W，FENCE R,R。
