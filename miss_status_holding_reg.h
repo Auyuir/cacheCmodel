@@ -103,6 +103,19 @@ private:
     friend class mshr;
 };
 
+class temp_write : public cache_building_block{
+public:
+    temp_write(){}
+    
+    temp_write(cache_line_t data, std::array<bool,LINEWORDS> mask):
+    m_data(data), m_mask(mask){}
+private:
+    cache_line_t m_data;
+    std::array<bool,LINEWORDS> m_mask;
+
+    friend class mshr;
+};
+
 //本类的成员变量和missRsp_process的入参相同
 class mshr_miss_rsp : public cache_building_block{
 public:
@@ -284,10 +297,17 @@ public:
         return m_write_under_readmiss.size() == N_MSHR_WRITE_UNDER_READ_MISS;
     }
 
-    void push_write_under_readmiss(block_addr_t block_addr, cache_line_t write_miss_data){
+    void push_write_under_readmiss(block_addr_t block_addr, temp_write write_miss_data){
         //write_miss_data already in mem order
         assert(!write_under_miss_full());
         m_write_under_readmiss.insert({block_addr,write_miss_data});
+    }
+
+    void pop_write_under_readmiss(const block_addr_t block_addr, cache_line_t& write_data, std::array<bool,LINEWORDS>& write_mask){
+        auto& content = m_write_under_readmiss[block_addr];
+        write_data = content.m_data;
+        write_mask = content.m_mask;
+        m_write_under_readmiss.erase(block_addr);
     }
 
     void DEBUG_visualize_array(){
@@ -312,7 +332,7 @@ public:
     std::map<block_addr_t,vec_entry_target_info> m_vec_entry;
     std::map<uint32_t,special_target_info> m_special_entry;
     //寄存器，置高时，在清空sub之后，开始处理cReq阻塞的sub full之前，先完成mReq Q里Wmiss的data array更新
-    std::map<block_addr_t,cache_line_t> m_write_under_readmiss;
+    std::map<block_addr_t,temp_write> m_write_under_readmiss;
     enum vec_mshr_status m_vec_probe_status_reg;
     enum spe_mshr_status m_spe_probe_status_reg;
 };

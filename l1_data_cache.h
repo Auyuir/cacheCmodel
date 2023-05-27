@@ -164,26 +164,49 @@ void coreReq_pipe1_cycle(cycle_t time){
                             pipe1_r.invalidate();
                         }//PRIMARY_FULL和SECONDARY_FULL直接跳过
                     }else{//Write (write no allocation when miss)
-                        if (!m_memReq_Q.is_full()){//&& !m_coreRsp_Q.is_full()){
-                            //push memReq Q
-                            cache_line_t data_memReq;
-                            std::array<bool,LINEWORDS> write_miss_mask;
-                            for(int i = 0;i<NLANE;++i){//core order to mem order crossbar
-                                if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
-                                    data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
-                                    write_miss_mask[pipe1_r.m_block_offset[i]] = true;
-                                }
+                        // c_with_if_rm的意思是conflict_with_inflight_rm
+                        bool c_with_if_rm = m_mshr.w_s_protection_check(pipe1_block_idx);
+                        
+                        cache_line_t data_memReq;
+                        std::array<bool,LINEWORDS> write_miss_mask;
+                        for(int i = 0;i<NLANE;++i){//core order to mem order crossbar
+                            if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
+                                data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
+                                write_miss_mask[pipe1_r.m_block_offset[i]] = true;
                             }
-                            dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
-                                PutPartialData, 
-                                0x0,
-                                pipe1_r.m_reg_idxw,//在出队后重新赋值
-                                pipe1_block_idx,
-                                data_memReq,
-                                write_miss_mask);
-                            m_memReq_Q.m_Q.push_back(new_write_miss);
-                            pipe1_r.invalidate();
                         }
+
+                        if (!c_with_if_rm){
+                            if (!m_memReq_Q.is_full()){//&& !m_coreRsp_Q.is_full()){
+                                //push memReq Q
+                                dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
+                                    PutPartialData, 
+                                    0x0,
+                                    pipe1_r.m_reg_idxw,//在出队后重新赋值
+                                    pipe1_block_idx,
+                                    data_memReq,
+                                    write_miss_mask);
+                                m_memReq_Q.m_Q.push_back(new_write_miss);
+                                pipe1_r.invalidate();
+                            }
+                        }else{//write miss conflict with in flight read miss
+                            if(!(c_with_if_rm && m_mshr.write_under_miss_full()) && !m_coreRsp_Q.is_full()){
+                                temp_write new_write_miss = temp_write(
+                                    data_memReq,
+                                    write_miss_mask
+                                ); 
+                                m_mshr.push_write_under_readmiss(pipe1_block_idx,new_write_miss);
+
+                                dcache_2_LSU_coreRsp hit_coreRsp(pipe1_r.m_reg_idxw,
+                                    data_memReq, //write,不需要返回数据，这里写着玩的
+                                    pipe1_r.m_wid, 
+                                    pipe1_r.m_mask);
+                                m_coreRsp_pipe2_reg.update_with(hit_coreRsp);
+                                pipe1_r.invalidate();
+                            }
+                        }
+                        //write miss on inflight read miss最差情况会导致阻塞
+                        
                     }
                 }
             }
@@ -355,8 +378,8 @@ void memRsp_pipe1_cycle(cycle_t time){
         auto& req_id = m_memRsp_pipe1_reg.m_req_id;
         bool current_missRsp_clear = false;
         if (type == REGULAR_READ_MISS){
-            u_int32_t tag_replace;
-            u_int32_t way_replace;
+            //u_int32_t tag_replace;
+            //u_int32_t way_replace;
             if(!tag_req_current_missRsp_has_sent){
                 bool need_replace = false;
                 //在硬件中是上个周期发起allocate请求，进行time的查询。此处获得结果
@@ -398,9 +421,21 @@ void memRsp_pipe1_cycle(cycle_t time){
                         m_coreRsp_pipe2_reg,
                         block_idx,
                         m_memRsp_pipe1_reg.m_fill_data);
-                    if(main_finish && !m_mshr.has_secondary_full_return()){
+                    if(main_finish && 
+                        !m_mshr.has_protect_to_release() && 
+                        !m_mshr.has_secondary_full_return()){
                         mshr_sub_clear = true;
                     }
+                }
+            }else if(m_mshr.has_protect_to_release()){
+                const u_int32_t set_idx = get_set_idx(block_idx);
+                m_tag_array.write_hit_mark_dirty(way_replace,set_idx,time);
+                cache_line_t data_to_write;
+                std::array<bool,LINEWORDS> write_mask;
+                m_mshr.pop_write_under_readmiss(block_idx,data_to_write,write_mask);
+                m_data_array.write_hit(set_idx,way_replace,data_to_write,write_mask);
+                if (!m_mshr.has_secondary_full_return()){
+                    mshr_sub_clear = true;
                 }
             }else if(m_mshr.has_secondary_full_return()){
                 if(!m_coreRsp_pipe2_reg.is_valid()){
@@ -439,6 +474,8 @@ void memRsp_pipe1_cycle(cycle_t time){
             mshr_sub_clear = false;
             tag_req_current_missRsp_has_sent = false;
             m_memRsp_pipe1_reg.invalidate();
+            tag_replace = -1;//初始化一个值便于错误调试
+            way_replace = -1;
         }
     }
 }
@@ -595,6 +632,10 @@ public:
     mshr_missRsp_pipe_reg m_memRsp_pipe1_reg;
     bool tag_req_current_missRsp_has_sent = false;//m_memRsp_pipe1_reg的一部分，单独控制信号
     bool mshr_sub_clear = false;
+    //为了应对数周期后write miss under read miss的使用场景，把这些变量从局部改为全局：
+    u_int32_t tag_replace;//memRsp_pipe1的寄存器
+    u_int32_t way_replace;//memRsp_pipe1的寄存器
+
     memReq_pipe_reg m_memReq_pipe3_reg;//m_memReq_Q出队有效且无需WSHR、MSHR保护时为真，组合逻辑
 
     tag_array m_tag_array;
