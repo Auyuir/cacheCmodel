@@ -95,31 +95,6 @@ struct dcache_2_L2_memReq : cache_building_block {
     cache_line_t a_data;
 };
 
-//memReq_Q include W from cReq, dirty replace, or flush et.al
-//only cReq trigger coreRsp
-struct memReq_Q_ele : public dcache_2_L2_memReq {
-    public:
-    memReq_Q_ele(enum TL_UH_A_opcode opcode, u_int32_t param, 
-    u_int32_t source_id, u_int32_t block_idx, cache_line_t data, std::array<bool,LINEWORDS> mask){
-        a_opcode=opcode;
-        a_param=param;
-        a_source=source_id;
-        a_data=data;
-        a_mask=mask;
-        a_address = block_idx << LOGB2(LINEWORDS);
-    }
-
-    void set_coreRsp(){
-        need_coreRsp = true;
-    }
-
-    bool have_to_coreRsp(){
-        return need_coreRsp;
-    }
-
-    bool need_coreRsp=false;
-};
-
 class memReq_Q : cache_building_block{
 public:
     bool is_full(){
@@ -131,7 +106,7 @@ public:
         return m_Q.size() == 0;
     }
 
-    std::deque<memReq_Q_ele> m_Q;
+    std::deque<dcache_2_L2_memReq> m_Q;
 };
 
 struct L2_2_dcache_memRsp : cache_building_block {
