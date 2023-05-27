@@ -26,12 +26,24 @@ public:
         m_data[set_idx][way_idx] = fill_line;
     }
 
+    //用于正常的write hit
     void write_hit(u_int32_t set_idx,u_int32_t way_idx, 
         vec_nlane_t hit_data, vec_nlane_t block_offset, std::array<bool,NLANE> lane_mask){
         auto& selected_line = m_data[set_idx][way_idx];
         for(int i = 0;i<NLANE;++i){
             if(lane_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
                 selected_line[block_offset[i]] = hit_data[i];
+            }
+        }
+    }
+
+    //仅用于write miss under read miss的release
+    void write_hit(u_int32_t set_idx,u_int32_t way_idx, 
+        cache_line_t data, std::array<bool,LINEWORDS> mask){
+        auto& selected_line = m_data[set_idx][way_idx];
+        for(int i = 0;i<LINEWORDS;++i){
+            if(mask[i]==true){
+                selected_line[i] = data[i];
             }
         }
     }
