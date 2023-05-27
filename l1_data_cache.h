@@ -451,18 +451,18 @@ void memReq_pipe2_cycle(){
         auto& op = mReq.a_opcode;
         bool is_write = ((op == PutFullData) || (op == PutPartialData)) && (mReq.a_param == 0);
         bool is_read = (op == Get) && (mReq.a_param == 0);
-        bool mshr_protect = false;
+        //bool mshr_protect = false;
         bool wshr_protect = false;
         bool cRsp_blocked_OR_wshr_full = false;
         if(is_write){
             wshr_protect = m_wshr.has_conflict(mReq_block_addr);
-            mshr_protect = m_mshr.w_s_protection_check(mReq_block_addr);
+            //mshr_protect = m_mshr.w_s_protection_check(mReq_block_addr);
             cRsp_blocked_OR_wshr_full = (m_coreRsp_Q.is_full() && mReq.have_to_coreRsp()) || m_wshr.is_full();
         }else if(is_read){
             wshr_protect = m_wshr.has_conflict(mReq_block_addr);
         }
         
-        if(!mshr_protect && !wshr_protect && !cRsp_blocked_OR_wshr_full){
+        if(!wshr_protect && !cRsp_blocked_OR_wshr_full){//!mshr_protect && 
             dcache_2_L2_memReq mReq_updated = mReq;
             if(is_write){
                 //push wshr

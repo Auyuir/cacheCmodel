@@ -276,6 +276,20 @@ public:
         return m_vec_entry.empty();
     }
 
+    bool has_protect_to_release(){
+        return !m_write_under_readmiss.empty();
+    }
+
+    bool write_under_miss_full(){
+        return m_write_under_readmiss.size() == N_MSHR_WRITE_UNDER_READ_MISS;
+    }
+
+    void push_write_under_readmiss(block_addr_t block_addr, cache_line_t write_miss_data){
+        //write_miss_data already in mem order
+        assert(!write_under_miss_full());
+        m_write_under_readmiss.insert({block_addr,write_miss_data});
+    }
+
     void DEBUG_visualize_array(){
         DEBUG_print_title();
         if (m_vec_entry.size()==0){
@@ -297,6 +311,8 @@ public:
 
     std::map<block_addr_t,vec_entry_target_info> m_vec_entry;
     std::map<uint32_t,special_target_info> m_special_entry;
+    //寄存器，置高时，在清空sub之后，开始处理cReq阻塞的sub full之前，先完成mReq Q里Wmiss的data array更新
+    std::map<block_addr_t,cache_line_t> m_write_under_readmiss;
     enum vec_mshr_status m_vec_probe_status_reg;
     enum spe_mshr_status m_spe_probe_status_reg;
 };

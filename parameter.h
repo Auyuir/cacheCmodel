@@ -50,6 +50,7 @@ public:
     constexpr static u_int32_t N_MSHR_ENTRY = 4;
     constexpr static u_int32_t N_MSHR_SUBENTRY = 2;//4;
     constexpr static u_int32_t N_MSHR_SPECIAL_ENTRY = 4;
+    u_int32_t N_MSHR_WRITE_UNDER_READ_MISS = std::max(4U,N_MSHR_ENTRY/8);
 
     constexpr static u_int32_t N_WSHR_ENTRY = 4;
 
