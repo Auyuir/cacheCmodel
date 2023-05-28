@@ -73,12 +73,20 @@ public:
         m_sub_en.pop_back();
     }
 
+    void set_order_of_wm_within(){
+        m_order_of_wm_within_if_rm = m_sub_en.size();
+    }
+
 private:
     //bool m_valid;
     //u_int32_t m_block_addr;
 
     //便于missRsp时索引，硬件上可能冗余
     u_int32_t m_req_id;
+    //order of write miss within in flight read miss
+    //如果不存在wm，该值大于sub容量，所以不会被触发
+    //该值不等于0，等于1时表示在第一个sub被处理前先处理
+    u_int32_t m_order_of_wm_within_if_rm = N_MSHR_SUBENTRY+1;
     std::deque<vec_subentry> m_sub_en;
 
     friend class mshr;
@@ -154,23 +162,31 @@ public:
 
     //每次调用处理一个subentry。当前main entry清空时，返回true。
     bool vec_arrange_core_rsp(coreRsp_pipe_reg& pipe_reg, block_addr_t block_idx, cache_line_t& missRsp_line){
-        assert(!pipe_reg.is_valid());
         auto& current_main = m_vec_entry[block_idx].m_sub_en;
         assert(!current_main.empty());
-        auto& current_sub = current_main.front();
-        vec_nlane_t coreRsp_data;
-        for(int i = 0;i<NLANE;++i){
-            if(current_sub.m_mask[i]==true){//mem order to core order crossbar
-                coreRsp_data[i] = missRsp_line[current_sub.m_block_offset[i]];
+        auto& wm_order = m_vec_entry[block_idx].m_order_of_wm_within_if_rm;
+        if(wm_order == 0){
+            m_deal_with_wm = true;
+            wm_order--;
+            return false;
+        }else{
+            wm_order--;
+            assert(!pipe_reg.is_valid());
+            auto& current_sub = current_main.front();
+            vec_nlane_t coreRsp_data;
+            for(int i = 0;i<NLANE;++i){
+                if(current_sub.m_mask[i]==true){//mem order to core order crossbar
+                    coreRsp_data[i] = missRsp_line[current_sub.m_block_offset[i]];
+                }
             }
+            dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
+                current_sub.m_req_id,
+                coreRsp_data,
+                current_sub.m_wid,
+                current_sub.m_mask);
+            pipe_reg.update_with(new_rsp);
+            current_main.pop_front();
         }
-        dcache_2_LSU_coreRsp new_rsp = dcache_2_LSU_coreRsp(
-            current_sub.m_req_id,
-            coreRsp_data,
-            current_sub.m_wid,
-            current_sub.m_mask);
-        pipe_reg.update_with(new_rsp);
-        current_main.pop_front();
 
         if (current_main.empty()){
             //为了让此时阻塞的coreReq可以进行
@@ -180,6 +196,7 @@ public:
                 m_vec_probe_status_reg = SECONDARY_FULL_RETURN;
             }
             m_vec_entry.erase(block_idx);
+            wm_order = N_MSHR_SUBENTRY+1;
             return true;
         }
         
@@ -290,7 +307,11 @@ public:
     }
 
     bool has_protect_to_release(){
-        return !m_write_under_readmiss.empty();
+        return m_deal_with_wm;
+    }
+
+    void release_wm(){
+        m_deal_with_wm = false;
     }
 
     bool write_under_miss_full(){
@@ -301,6 +322,7 @@ public:
         //write_miss_data already in mem order
         assert(!write_under_miss_full());
         m_write_under_readmiss.insert({block_addr,write_miss_data});
+        m_vec_entry[block_addr].set_order_of_wm_within();
     }
 
     void pop_write_under_readmiss(const block_addr_t block_addr, cache_line_t& write_data, std::array<bool,LINEWORDS>& write_mask){
@@ -333,6 +355,7 @@ public:
     std::map<uint32_t,special_target_info> m_special_entry;
     //寄存器，置高时，在清空sub之后，开始处理cReq阻塞的sub full之前，先完成mReq Q里Wmiss的data array更新
     std::map<block_addr_t,temp_write> m_write_under_readmiss;
+    bool m_deal_with_wm=false;
     enum vec_mshr_status m_vec_probe_status_reg;
     enum spe_mshr_status m_spe_probe_status_reg;
 };

@@ -421,21 +421,18 @@ void memRsp_pipe1_cycle(cycle_t time){
                         m_coreRsp_pipe2_reg,
                         block_idx,
                         m_memRsp_pipe1_reg.m_fill_data);
-                    if(main_finish && 
-                        !m_mshr.has_protect_to_release() && 
-                        !m_mshr.has_secondary_full_return()){
+                    if(m_mshr.has_protect_to_release()){
+                        const u_int32_t set_idx = get_set_idx(block_idx);
+                        m_tag_array.write_hit_mark_dirty(way_replace,set_idx,time);
+                        cache_line_t data_to_write;
+                        std::array<bool,LINEWORDS> write_mask;
+                        m_mshr.pop_write_under_readmiss(block_idx,data_to_write,write_mask);
+                        m_data_array.write_hit(set_idx,way_replace,data_to_write,write_mask);
+                        m_mshr.release_wm();
+                    }
+                    if(main_finish && !m_mshr.has_secondary_full_return()){
                         mshr_sub_clear = true;
                     }
-                }
-            }else if(m_mshr.has_protect_to_release()){
-                const u_int32_t set_idx = get_set_idx(block_idx);
-                m_tag_array.write_hit_mark_dirty(way_replace,set_idx,time);
-                cache_line_t data_to_write;
-                std::array<bool,LINEWORDS> write_mask;
-                m_mshr.pop_write_under_readmiss(block_idx,data_to_write,write_mask);
-                m_data_array.write_hit(set_idx,way_replace,data_to_write,write_mask);
-                if (!m_mshr.has_secondary_full_return()){
-                    mshr_sub_clear = true;
                 }
             }else if(m_mshr.has_secondary_full_return()){
                 if(!m_coreRsp_pipe2_reg.is_valid()){

@@ -1,0 +1,6 @@
+lw x5,(10)
+sw 88,(10)
+lw x6,(10)
+
+//本测试进行write miss under inflight read miss场景
+//该测试中line 3的lw需要返回line 2 sw写入的88
