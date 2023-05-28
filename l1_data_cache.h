@@ -168,7 +168,7 @@ void coreReq_pipe1_cycle(cycle_t time){
                         bool c_with_if_rm = m_mshr.w_s_protection_check(pipe1_block_idx);
                         
                         cache_line_t data_memReq;
-                        std::array<bool,LINEWORDS> write_miss_mask;
+                        std::array<bool,LINEWORDS> write_miss_mask{false};
                         for(int i = 0;i<NLANE;++i){//core order to mem order crossbar
                             if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
                                 data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
