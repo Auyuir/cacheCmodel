@@ -11,18 +11,18 @@ N_MSHR_SUBENTRY=2
 N_MSHR_SPECIAL_ENTRY=4
 
  time | event  |wid|src|
-  101 | coreReq| 30|   | r_idx99, op=1, param=0
-  102 | coreReq|  3|   | r_idx5, op=0, param=0
-  104 | coreRsp|  0|   | r_idx99, is vector 
+  101 | coreReq| 14|   | r_idx99, op=1, param=0
+  102 | coreReq|  5|   | r_idx99, op=1, param=0
+  104 | coreRsp|  0|   | r_idx99, is scalar 
   104 | memReq |   |  0| a_op=1
   108 | memRsp |   |  0|
-  110 | memReq |   |  5| a_op=4
-  114 | memRsp |   |  5|
-  117 | coreRsp|  3|   | r_idx5, is scalar 
+  110 | coreRsp|  0|   | r_idx99, is scalar 
+  110 | memReq |   |  0| a_op=1
+  114 | memRsp |   |  0|
 set_idx | way 0               | way 1               |
         | v d --tag--- lat lft| v d --tag--- lat lft
       0 | 0 0 11111111   0   0| 0 0 11111111   0   0|
       1 | 0 0 11111111   0   0| 0 0 11111111   0   0|
-      2 | 1 0 00000000 115 115| 0 0 00000000   0   0|
-      3 | 0 0 00000000   0   0| 0 0 00000000   0   0|
+      2 | 0 0 11111111   0   0| 0 0 11111111   0   0|
+      3 | 0 0 11111111   0   0| 0 0 11111111   0   0|
 转置完成！
