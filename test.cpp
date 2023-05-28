@@ -176,7 +176,7 @@ public:
                 coreReq_word_addr = cast_addr_to_int(reg_imm_fields[2]);
                 reg_imm_fields[0] = reg_imm_fields[1];//data
             }else{
-                coreReq_id = 99;
+                coreReq_id = 88;
                 coreReq_word_addr = cast_addr_to_int(reg_imm_fields[1]);
             }
             
@@ -204,6 +204,7 @@ public:
             std::string t1 = reg_imm_fields[1];
             coreReq_opcode = InvOrFlu;
             coreReq_wid = random(0,31);
+            coreReq_id = 66;
             if ((t0=="r"&&t1=="r") || (t0=="r"&&t1=="rw") || (t0=="w"&&t1=="r") ||
             (t0=="w"&&t1=="rw") || (t0=="rw"&&t1=="r") || (t0=="rw"&&t1=="rw")){
                 coreReq_type = 0x0;

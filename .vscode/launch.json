@@ -45,6 +45,26 @@
             ]
         },
         {
+            "name": "(gdb) RRmiss_Whit_Flu_Rhit_Wmiss",
+            "type": "cppdbg",
+            "request": "launch",
+            //编译后binary的路径
+            "program": "${workspaceRoot}/test",
+            "args": ["${workspaceRoot}/instruction_files/RRmiss_Whit_Flu_Rhit_Wmiss.txt"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "(gdb) RmissWRhit_same",
             "type": "cppdbg",
             "request": "launch",
