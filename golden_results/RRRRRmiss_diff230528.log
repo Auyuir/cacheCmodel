@@ -11,30 +11,30 @@ N_MSHR_SUBENTRY=2
 N_MSHR_SPECIAL_ENTRY=4
 
  time | event  |wid|src|
-  101 | coreReq| 21|   | r_idx5, op=0, param=0
-  102 | coreReq|  4|   | r_idx6, op=0, param=0
-  103 | coreReq| 16|   | r_idx7, op=0, param=0
+  101 | coreReq| 26|   | r_idx5, op=0, param=0
+  102 | coreReq| 26|   | r_idx6, op=0, param=0
+  103 | coreReq| 30|   | r_idx7, op=0, param=0
   104 | memReq |   |  5| a_op=4
-  104 | coreReq|  2|   | r_idx8, op=0, param=0
+  104 | coreReq| 22|   | r_idx8, op=0, param=0
   105 | memReq |   |  6| a_op=4
-  105 | coreReq| 11|   | r_idx9, op=0, param=0
+  105 | coreReq|  7|   | r_idx9, op=0, param=0
   106 | memReq |   |  7| a_op=4
   107 | memReq |   |  8| a_op=4
   108 | memRsp |   |  5|
   109 | memRsp |   |  6|
   110 | memRsp |   |  7|
-  111 | coreRsp| 21|   | r_idx5, is scalar 
+  111 | coreRsp| 26|   | r_idx5, is scalar 
   111 | memRsp |   |  8|
-  112 | coreRsp|  4|   | r_idx6, is scalar 
-  113 | coreRsp| 16|   | r_idx7, is scalar 
-  114 | coreRsp|  2|   | r_idx8, is scalar 
+  112 | coreRsp| 26|   | r_idx6, is scalar 
+  113 | coreRsp| 30|   | r_idx7, is scalar 
+  114 | coreRsp| 22|   | r_idx8, is scalar 
   115 | memReq |   |  9| a_op=4
   119 | memRsp |   |  9|
-  122 | coreRsp| 11|   | r_idx9, is scalar 
+  122 | coreRsp|  7|   | r_idx9, is scalar 
 set_idx | way 0               | way 1               |
         | v d --tag--- lat lft| v d --tag--- lat lft
       0 | 1 0 00000010 112 112| 0 0 11111111   0   0|
       1 | 1 0 00000001 109 109| 1 0 00000010 120 120|
-      2 | 1 0 00000001 110 110| 0 0 00000000   0   0|
-      3 | 1 0 00000001 111 111| 0 0 00000000   0   0|
+      2 | 1 0 00000001 110 110| 0 0 11111111   0   0|
+      3 | 1 0 00000001 111 111| 0 0 11111111   0   0|
 转置完成！

@@ -141,7 +141,7 @@ public:
     dcache_2_LSU_coreRsp(u_int32_t reg_idxw, vec_nlane_t data, 
         u_int32_t wid, std::array<bool,NLANE> mask):m_wid(wid),
         m_reg_idxw(reg_idxw),m_mask(mask),m_data(data){
-        bool m_wxd = true;//IsScalar?
+        m_wxd = true;//IsScalar?
         for (int i = 1;i<NLANE;++i){
             if (m_mask[i]==true){
                 m_wxd = false;
