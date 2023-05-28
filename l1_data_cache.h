@@ -21,6 +21,14 @@ class mshr_missRsp_pipe_reg : public mshr_miss_rsp, public pipe_reg_base{
         set_valid();
     }
 
+    void write_hit(const cache_line_t& fill_data, const std::array<bool,LINEWORDS>& write_mask){
+        for(int i = 0;i<LINEWORDS;++i){
+            if(write_mask[i]==true){
+                m_fill_data[i] = fill_data[i];
+            }
+        }
+    }
+
     cache_line_t m_fill_data;
     //0 for no replace, 1 for replace
     bool tag_replace_status=0;
@@ -428,6 +436,7 @@ void memRsp_pipe1_cycle(cycle_t time){
                         std::array<bool,LINEWORDS> write_mask;
                         m_mshr.pop_write_under_readmiss(block_idx,data_to_write,write_mask);
                         m_data_array.write_hit(set_idx,way_replace,data_to_write,write_mask);
+                        m_memRsp_pipe1_reg.write_hit(data_to_write,write_mask);
                         m_mshr.release_wm();
                     }
                     if(main_finish && !m_mshr.has_secondary_full_return()){
