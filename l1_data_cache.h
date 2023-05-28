@@ -151,7 +151,7 @@ void coreReq_pipe1_cycle(cycle_t time){
                                 cache_line_t data{0};
                                 std::array<bool,LINEWORDS> full_mask;
                                 full_mask.fill(true);
-                                dcache_2_L2_memReq new_read_miss = dcache_2_L2_memReq(
+                                memReq_Q_ele new_read_miss = memReq_Q_ele(
                                     Get,
                                     0x0,
                                     pipe1_r.m_reg_idxw,
@@ -172,49 +172,27 @@ void coreReq_pipe1_cycle(cycle_t time){
                             pipe1_r.invalidate();
                         }//PRIMARY_FULL和SECONDARY_FULL直接跳过
                     }else{//Write (write no allocation when miss)
-                        // c_with_if_rm的意思是conflict_with_inflight_rm
-                        bool c_with_if_rm = m_mshr.w_s_protection_check(pipe1_block_idx);
-                        
-                        cache_line_t data_memReq;
-                        std::array<bool,LINEWORDS> write_miss_mask{false};
-                        for(int i = 0;i<NLANE;++i){//core order to mem order crossbar
-                            if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
-                                data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
-                                write_miss_mask[pipe1_r.m_block_offset[i]] = true;
+                        if (!m_memReq_Q.is_full()){//&& !m_coreRsp_Q.is_full()){
+                            //push memReq Q
+                            cache_line_t data_memReq;
+                            std::array<bool,LINEWORDS> write_miss_mask;
+                            for(int i = 0;i<NLANE;++i){//core order to mem order crossbar
+                                if(pipe1_r.m_mask[i]==true){//在硬件中，这里是offset矩阵转置的独热码
+                                    data_memReq[pipe1_r.m_block_offset[i]] = pipe1_r.m_data[i];
+                                    write_miss_mask[pipe1_r.m_block_offset[i]] = true;
+                                }
                             }
+                            memReq_Q_ele new_write_miss = memReq_Q_ele(
+                                PutPartialData, 
+                                0x0,
+                                pipe1_r.m_reg_idxw,//在出队后重新赋值
+                                pipe1_block_idx,
+                                data_memReq,
+                                write_miss_mask);
+                            new_write_miss.set_coreRsp();
+                            m_memReq_Q.m_Q.push_back(new_write_miss);
+                            pipe1_r.invalidate();
                         }
-
-                        if (!c_with_if_rm){
-                            if (!m_memReq_Q.is_full()){//&& !m_coreRsp_Q.is_full()){
-                                //push memReq Q
-                                dcache_2_L2_memReq new_write_miss = dcache_2_L2_memReq(
-                                    PutPartialData, 
-                                    0x0,
-                                    pipe1_r.m_reg_idxw,//在出队后重新赋值
-                                    pipe1_block_idx,
-                                    data_memReq,
-                                    write_miss_mask);
-                                m_memReq_Q.m_Q.push_back(new_write_miss);
-                                pipe1_r.invalidate();
-                            }
-                        }else{//write miss conflict with in flight read miss
-                            if(!(c_with_if_rm && m_mshr.write_under_miss_full()) && !m_coreRsp_Q.is_full()){
-                                temp_write new_write_miss = temp_write(
-                                    data_memReq,
-                                    write_miss_mask
-                                ); 
-                                m_mshr.push_write_under_readmiss(pipe1_block_idx,new_write_miss);
-
-                                dcache_2_LSU_coreRsp hit_coreRsp(pipe1_r.m_reg_idxw,
-                                    data_memReq, //write,不需要返回数据，这里写着玩的
-                                    pipe1_r.m_wid, 
-                                    pipe1_r.m_mask);
-                                m_coreRsp_pipe2_reg.update_with(hit_coreRsp);
-                                pipe1_r.invalidate();
-                            }
-                        }
-                        //write miss on inflight read miss最差情况会导致阻塞
-                        
                     }
                 }
             }
@@ -258,7 +236,7 @@ void coreReq_pipe1_LRSCAMO(){
             if (pipe1_r.LRSCAMO_is_dirty()){
                 std::array<bool,LINEWORDS> full_mask;
                 full_mask.fill(true);
-                dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
+                memReq_Q_ele new_dirty_back = memReq_Q_ele(
                     PutFullData, 
                     0x0, 
                     0xFFFFF, 
@@ -273,7 +251,7 @@ void coreReq_pipe1_LRSCAMO(){
                 //push memReq_Q
                 cache_line_t data_memReq{pipe1_r.m_data[0]};
                 std::array<bool,LINEWORDS> onehot_mask{true};
-                dcache_2_L2_memReq new_spe_req = dcache_2_L2_memReq(
+                memReq_Q_ele new_spe_req = memReq_Q_ele(
                     new_mReq_opcode,
                     new_mReq_param,
                     pipe1_r.m_reg_idxw,
@@ -306,7 +284,7 @@ void coreReq_pipe1_invORflu(){
             if(!m_memReq_Q.is_full()){
                 std::array<bool,LINEWORDS> full_mask;
                 full_mask.fill(true);
-                dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(
+                memReq_Q_ele new_dirty_back = memReq_Q_ele(
                     PutFullData,
                     0x0,
                     0xFFFFF,
@@ -408,7 +386,7 @@ void memRsp_pipe1_cycle(cycle_t time){
                         u_int32_t block_addr = (tag_replace << LOGB2(NSET) + set_idx) << 2;
                         std::array<bool,LINEWORDS> full_mask;
                         full_mask.fill(true);
-                        dcache_2_L2_memReq new_dirty_back = dcache_2_L2_memReq(//TODO这里data_array不能在这个周期完成
+                        memReq_Q_ele new_dirty_back = memReq_Q_ele(//TODO这里data_array不能在这个周期完成
                             PutFullData,
                             0x0,
                             0xFFFFF,
@@ -488,7 +466,7 @@ void memRsp_pipe1_cycle(cycle_t time){
 
 void memReq_pipe2_cycle(){
     if(!m_memReq_Q.is_empty() && !m_memReq_pipe3_reg.is_valid()){
-        dcache_2_L2_memReq& mReq = m_memReq_Q.m_Q.front();
+        memReq_Q_ele& mReq = m_memReq_Q.m_Q.front();
         u_int32_t mReq_block_addr = get_block_idx(mReq.a_address);
         auto& op = mReq.a_opcode;
         bool is_write = ((op == PutFullData) || (op == PutPartialData)) && (mReq.a_param == 0);
@@ -499,7 +477,7 @@ void memReq_pipe2_cycle(){
         if(is_write){
             wshr_protect = m_wshr.has_conflict(mReq_block_addr);
             //mshr_protect = m_mshr.w_s_protection_check(mReq_block_addr);
-            cRsp_blocked_OR_wshr_full = m_coreRsp_Q.is_full() || m_wshr.is_full();
+            cRsp_blocked_OR_wshr_full = (m_coreRsp_Q.is_full() && mReq.have_to_coreRsp()) || m_wshr.is_full();
         }else if(is_read){
             wshr_protect = m_wshr.has_conflict(mReq_block_addr);
         }
@@ -514,15 +492,17 @@ void memReq_pipe2_cycle(){
                 //modify mReq
                 
                 mReq_updated.a_source = wshr_idx;
-                //arrange coreRsp
-                vec_nlane_t dummy_data{0};
-                std::array<bool,NLANE> dummy_mask{false};
-                //在目前的建模中core不需要写入的返回，所以没有建模该请求的内容
-                dcache_2_LSU_coreRsp write_miss_coreRsp(99,//regidx
-                    dummy_data,
-                    0,//id
-                    dummy_mask);
-                m_coreRsp_Q.m_Q.push_back(write_miss_coreRsp);
+                if(mReq.have_to_coreRsp()){
+                    //arrange coreRsp
+                    vec_nlane_t dummy_data{0};
+                    std::array<bool,NLANE> dummy_mask{false};
+                    //在目前的建模中core不需要写入的返回，所以没有建模该请求的内容
+                    dcache_2_LSU_coreRsp write_miss_coreRsp(99,//regidx
+                        dummy_data,
+                        0,//id
+                        dummy_mask);
+                    m_coreRsp_Q.m_Q.push_back(write_miss_coreRsp);
+                }
             }
             m_memReq_pipe3_reg.update_with(mReq_updated);
             m_memReq_Q.m_Q.pop_front();
