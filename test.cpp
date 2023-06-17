@@ -273,6 +273,7 @@ public:
     void DEBUG_waveform_title(std::ofstream& waveform){
         waveform << "cycle," ;
         waveform << "cReq_st1_v,cReq_st1_wid,cRsp_st2_v,cRsp_st2_wid,mRsp_st1,mRsp_st2_d_source,";
+        waveform << "mshr m empty,probeStatus";
         waveform << "cReq_v,cReq_op,cReq_type,cReq_wid,cReq_id,cReq_block_idx,cReq_block_offset_0,cReq_mask_0,cReq_mask_1,cReq_data_0" << "," ;
         waveform << "cRsp_v,cRsp_wid,cRsp_id,cRsp_mask_0,cRsp_wxd,cRsp_data_0" << ",";
         waveform << "d_v,d_op,d_source,d_mask_0,d_mask_1,d_data_0" << ",";

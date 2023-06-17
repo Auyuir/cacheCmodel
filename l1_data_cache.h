@@ -577,6 +577,7 @@ memRsp_pipe0_cycle(time);//否则memRsp pipe1的运行会pop memRsp_Q
         waveform_file << m_coreReq_pipe1_reg.is_valid() << "," << m_coreReq_pipe1_reg.m_wid << ",";
         waveform_file << m_coreRsp_pipe2_reg.is_valid() << "," << m_coreRsp_pipe2_reg.m_wid << ",";
         waveform_file << m_memRsp_pipe1_reg.is_valid() << "," << m_memRsp_pipe1_reg.m_req_id << ",";
+        waveform_file << m_mshr.empty() << "," << m_mshr.probe_vec_out() << ",";
     }
 
     void DEBUG_waveform_coreReq_a_cycle(std::ofstream& waveform_file){
