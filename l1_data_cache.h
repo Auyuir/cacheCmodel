@@ -147,6 +147,7 @@ void coreReq_pipe1_cycle(cycle_t time){
                                     pipe1_r.m_mask,
                                     pipe1_r.m_block_offset);
                                 m_mshr.allocate_vec_main(pipe1_block_idx, new_vec_sub);
+                                //这里有一个硬件时序bug，修改了mshr条目数，后面的coreReq_st0会读取到修改后的新值。
                                 //push memReq Q
                                 cache_line_t data{0};
                                 std::array<bool,LINEWORDS> full_mask;
